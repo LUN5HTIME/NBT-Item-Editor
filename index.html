@@ -667,10 +667,11 @@
         }
 
         textarea {
-            height: 115px;
+            min-height: 115px;
             color: #c0d0e0;
             font-size: 18px;
-            resize: vertical;
+            resize: none;
+            overflow: hidden;
             line-height: 1.5;
         }
 
@@ -1956,6 +1957,11 @@
 
         $('nameInput').value = nameVal;
         $('loreInput').value = loreVal;
+        
+        // Auto-resize both inputs to fit the loaded text immediately
+        autoResize($('nameInput'));
+        autoResize($('loreInput'));
+
         $('keepCheck').checked = keep;
         $('glintCheck').checked = glint;
         updatePreview();
@@ -2204,6 +2210,7 @@
         applyTimer = setTimeout(applyChanges, 300);
     });
     $('loreInput').addEventListener('input', () => {
+        autoResize($('loreInput'));
         updatePreview();
         clearTimeout(applyTimer);
         applyTimer = setTimeout(applyChanges, 300);
