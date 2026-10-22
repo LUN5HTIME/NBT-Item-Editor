@@ -1,0 +1,2117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>✦NBT Editor</title>
+        <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0a12'/%3E%3Crect x='5' y='5' width='22' height='22' fill='%231a0a30' stroke='%23bf00ff' stroke-width='2'/%3E%3Crect x='12' y='12' width='8' height='8' fill='none' stroke='%23bf00ff' stroke-width='2'/%3E%3C/svg%3E" />
+    <style>
+        @font-face {
+            font-family: 'Mojang';
+            src: url('https://cdn.jsdelivr.net/gh/IdreesInc/Minecraft-Font@master/Minecraft.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+    </style>
+    <style>
+        :root {
+            --bg: #0a0a12;
+            --panel: #12121f;
+            --border: #2a2a4a;
+            --cyan: #00f7ff;
+            --pink: #ff00aa;
+            --purple: #bf00ff;
+            --green: #00ff9d;
+            --yellow: #ffee00;
+            --text: #e0f7ff;
+            --muted: #7a8a9a;
+            --glow-color: #00f7ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Mojang', 'Minecraft', sans-serif;
+            font-size: 22px;
+            word-spacing: 6px; /* ADDED THIS LINE */
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .screen {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        #listScreen {
+            opacity: 1;
+            transform: scale(1);
+            filter: blur(0);
+            pointer-events: all;
+        }
+        #listScreen.hidden {
+            opacity: 0;
+            transform: scale(0.93);
+            filter: blur(10px);
+            pointer-events: none;
+        }
+
+        #detailScreen {
+            opacity: 0;
+            transform: scale(1.07);
+            filter: blur(14px);
+            pointer-events: none;
+        }
+        #detailScreen.active {
+            opacity: 1;
+            transform: scale(1);
+            filter: blur(0);
+            pointer-events: all;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            position: relative;
+            z-index: 10;
+            background: linear-gradient(90deg, #0c0c18, #1a0a28, #0c0c18);
+            border-bottom: 4px solid var(--cyan);
+            box-shadow: 0 0 28px rgba(0, 247, 255, 0.35);
+            padding: 11px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .toolbar::after {
+            content: "";
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--cyan), var(--pink), var(--cyan), transparent);
+            background-size: 200% 100%;
+            animation: borderFlow 3s linear infinite;
+        }
+
+        @keyframes borderFlow {
+            0% {
+                background-position: 0% 50%;
+            }
+            100% {
+                background-position: 200% 50%;
+            }
+        }
+
+        .toolbar button {
+            background: transparent;
+            color: var(--cyan);
+            border: 3px solid var(--cyan);
+            padding: 8px 13px;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 22px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            box-shadow: 0 0 12px rgba(0, 247, 255, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .toolbar button:hover:not(:disabled) {
+            background: rgba(0, 247, 255, 0.12);
+            box-shadow: 0 0 24px rgba(0, 247, 255, 0.65);
+            text-shadow: 0 0 10px var(--cyan);
+            transform: translateY(-2px);
+        }
+
+        .toolbar button:active:not(:disabled) {
+            transform: scale(0.94);
+        }
+        .toolbar button:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .toolbar button.primary {
+            border-color: var(--pink);
+            color: var(--pink);
+            box-shadow: 0 0 12px rgba(255, 0, 170, 0.35);
+        }
+
+        .toolbar button.primary:hover:not(:disabled) {
+            background: rgba(255, 0, 170, 0.12);
+            box-shadow: 0 0 26px rgba(255, 0, 170, 0.75);
+            text-shadow: 0 0 12px var(--pink);
+        }
+
+        .toolbar button.green {
+            border-color: var(--green);
+            color: var(--green);
+            box-shadow: 0 0 12px rgba(0, 255, 157, 0.35);
+        }
+        .toolbar button.green:hover:not(:disabled) {
+            background: rgba(0, 255, 157, 0.12);
+            box-shadow: 0 0 26px rgba(0, 255, 157, 0.75);
+            text-shadow: 0 0 12px var(--green);
+        }
+
+        .toolbar button.back-btn {
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
+
+        .toolbar button.back-btn:hover {
+            background: rgba(255, 238, 0, 0.1);
+            box-shadow: 0 0 22px rgba(255, 238, 0, 0.55);
+        }
+
+        .status {
+            margin-left: auto;
+            font-size: 22px;
+            color: var(--green);
+            text-shadow: 0 0 10px rgba(0, 255, 157, 0.55);
+        }
+
+        /* List */
+        .list-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 22px;
+            position: relative;
+        }
+
+        .list-title {
+            font-size: 22px;
+            color: var(--cyan);
+            text-shadow: 0 0 14px rgba(0, 247, 255, 0.5);
+            margin-bottom: 18px;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        .chest-wrapper {
+            margin-bottom: 30px;
+            border: 3px solid var(--border);
+            background: rgba(14, 14, 26, 0.92);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            animation: chestOpen 0.5s ease-out;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        @keyframes chestOpen {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .chest-wrapper:hover {
+            border-color: var(--glow-color);
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), 0 0 20px var(--glow-color);
+        }
+
+        .chest-header {
+            font-size: 22px;
+            color: var(--yellow);
+            text-shadow: 0 0 10px rgba(255, 238, 0, 0.5);
+            margin-bottom: 10px;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .chest-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 50px);
+            gap: 4px;
+            justify-content: center;
+        }
+
+        .chest-slot {
+            width: 50px;
+            height: 50px;
+            background: #1a1a2e;
+            border: 2px solid #333;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+            image-rendering: pixelated;
+            overflow: hidden;
+        }
+
+        .chest-slot:hover {
+            border-color: var(--cyan);
+            box-shadow: 0 0 12px var(--cyan);
+            transform: scale(1.08);
+        }
+
+        .chest-slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated;
+            position: relative;
+            z-index: 1;
+        }
+
+        .chest-slot .count {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            color: white;
+            text-shadow: 1px 1px 0 #000;
+            font-size: 15px;
+            font-family: 'Mojang', sans-serif;
+            z-index: 3;
+        }
+
+        /* Minecraft-style enchantment glint */
+        .chest-slot.has-glint::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            background: linear-gradient(
+                115deg,
+                transparent 20%,
+                rgba(180, 100, 255, 0.15) 35%,
+                rgba(255, 255, 255, 0.55) 48%,
+                rgba(200, 140, 255, 0.45) 52%,
+                rgba(180, 100, 255, 0.15) 65%,
+                transparent 80%
+            );
+            background-size: 250% 100%;
+            animation: glintSweep 3s linear infinite;
+            mix-blend-mode: soft-light;
+        }
+
+        .chest-slot.has-glint::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            background: linear-gradient(
+                115deg,
+                transparent 10%,
+                rgba(120, 60, 220, 0.12) 40%,
+                rgba(255, 200, 255, 0.25) 50%,
+                rgba(120, 60, 220, 0.12) 60%,
+                transparent 90%
+            );
+            background-size: 300% 100%;
+            animation: glintSweep 3.4s linear infinite reverse;
+            mix-blend-mode: overlay;
+            opacity: 0.85;
+        }
+
+        @keyframes glintSweep {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Edited item: outline + star badge */
+        .chest-slot.edited {
+            border-color: var(--yellow);
+            box-shadow: 0 0 10px rgba(255, 238, 0, 0.45), inset 0 0 6px rgba(255, 238, 0, 0.12);
+        }
+
+        .chest-slot.edited:hover {
+            border-color: var(--yellow);
+            box-shadow: 0 0 16px rgba(255, 238, 0, 0.7), 0 0 12px var(--cyan);
+        }
+
+        .chest-slot .edit-star {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 4;
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            line-height: 1;
+            color: var(--yellow);
+            text-shadow:
+                0 0 4px rgba(255, 238, 0, 0.9),
+                1px 1px 0 #000,
+                -1px -1px 0 #000;
+            pointer-events: none;
+            animation: starPulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes starPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.15); opacity: 0.85; }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 70px 20px;
+            color: var(--muted);
+            font-size: 22px;
+            line-height: 2;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            background: #100015;
+            border: 2px solid #3a1a5c;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.8), inset 0 0 10px rgba(0, 0, 0, 0.5);
+            padding: 8px 10px;
+            max-width: 500px;
+            width: max-content;
+            font-family: 'Mojang', monospace;
+            font-size: 11px;
+            color: #ffffff;
+            display: none;
+            line-height: 1.25;
+            white-space: pre-wrap;
+        }
+
+        .tooltip div {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        .tooltip .name {
+            font-size: 13px;
+            line-height: 1.25;
+        }
+        .tooltip .enchant {
+            color: #7a7a7a;
+        }
+        .tooltip .lore {
+            color: #ffffff;
+            font-size: 11px;
+            line-height: 1.25;
+        }
+        .tooltip .keep {
+            /* color/italic come from § codes via parseMC */
+        }
+
+        /* Detail cards */
+        .detail-container {
+            flex: 1;
+            padding: 22px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            max-width: 1300px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Define the 2-column layout side-by-side */
+        .detail-container {
+            grid-template-areas:
+                "selected preview"
+                "rename preview"
+                "lore preview"
+                "flags preview";
+        }
+
+        .detail-container .card:nth-child(1) {
+            grid-area: preview;
+            align-self: start;
+            height: fit-content;
+        }
+        .detail-container .card:nth-child(2) { grid-area: selected; }
+        .detail-container .card:nth-child(3) { grid-area: rename; }
+        .detail-container .card:nth-child(4) { grid-area: lore; }
+        .detail-container .card:nth-child(5) { grid-area: flags; }
+
+        .card {
+            background: rgba(14, 14, 26, 0.93);
+            border: 3px solid var(--border);
+            padding: 16px;
+            position: relative;
+            animation: cardEnter 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+        }
+
+        .card:nth-child(1) {
+            animation-delay: 0.05s;
+        }
+        .card:nth-child(2) {
+            animation-delay: 0.11s;
+        }
+        .card:nth-child(3) {
+            animation-delay: 0.17s;
+        }
+        .card:nth-child(4) {
+            animation-delay: 0.23s;
+        }
+        .card:nth-child(5) {
+            animation-delay: 0.29s;
+        }
+        .card:nth-child(6) {
+            animation-delay: 0.35s;
+        }
+
+        @keyframes cardEnter {
+            from {
+                opacity: 0;
+                transform: translateY(22px) scale(0.97);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+        }
+
+        .card h3 {
+            font-size: 22px;
+            color: var(--pink);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(255, 0, 170, 0.45);
+        }
+
+        .selected-header {
+            display: flex;
+            align-items: left;
+            gap: 16px;
+            flex-direction: row-reverse; /* Moves icon to the right */
+        }
+
+        .selected-header .detail-icon-wrap {
+            width: 52px;
+            height: 52px;
+            position: relative;
+            flex-shrink: 0;
+            border: 3px solid #333;
+            background: #111;
+            overflow: hidden;
+            image-rendering: pixelated;
+        }
+
+        .selected-header .detail-icon-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated;
+            position: relative;
+            z-index: 1;
+            border: none;
+            background: transparent;
+            display: block;
+        }
+
+        /* Glint on editor detail icon (same effect as list slots) */
+        .selected-header .detail-icon-wrap.has-glint::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            background: linear-gradient(
+                115deg,
+                transparent 20%,
+                rgba(180, 100, 255, 0.15) 35%,
+                rgba(255, 255, 255, 0.55) 48%,
+                rgba(200, 140, 255, 0.45) 52%,
+                rgba(180, 100, 255, 0.15) 65%,
+                transparent 80%
+            );
+            background-size: 250% 100%;
+            animation: glintSweep 2.2s linear infinite;
+            mix-blend-mode: soft-light;
+        }
+
+        .selected-header .detail-icon-wrap.has-glint::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            background: linear-gradient(
+                115deg,
+                transparent 10%,
+                rgba(120, 60, 220, 0.12) 40%,
+                rgba(255, 200, 255, 0.25) 50%,
+                rgba(120, 60, 220, 0.12) 60%,
+                transparent 90%
+            );
+            background-size: 300% 100%;
+            animation: glintSweep 3.4s linear infinite reverse;
+            mix-blend-mode: overlay;
+            opacity: 0.85;
+        }
+
+        .selected-header .name {
+            color: var(--yellow);
+            font-size: 22px;
+            text-shadow: 0 0 10px rgba(255, 238, 0, 0.45);
+        }
+
+        .preview-box {
+            background: #100015;
+            border: 2px solid #3a1a5c;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.8), inset 0 0 10px rgba(0, 0, 0, 0.5);
+            padding: 8px 10px;
+            max-width: 500px;
+            width: max-content;
+            min-width: 0;
+            font-family: 'Mojang', monospace;
+            font-size: 11px;
+            color: #ffffff;
+            line-height: 1.25;
+            display: inline-block;
+            vertical-align: top;
+            height: fit-content;
+        }
+
+        .preview-box .name {
+            font-size: 13px;
+            line-height: 1.25;
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        .preview-box .lore {
+            color: #ffffff;
+            font-size: 11px;
+            line-height: 1.25;
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        .preview-box .keep {
+            font-size: 18px;
+            line-height: 1.25;
+            margin: 0;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            background: #080812;
+            border: 3px solid #24344f;
+            color: #e0e0e0;
+            padding: 11px 13px;
+            font-size: 18px;
+            transition: all 0.25s;
+            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.6);
+            word-spacing: 6px; /* ADDED THIS LINE */
+        }
+
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--cyan);
+            box-shadow: 0 0 20px rgba(0, 247, 255, 0.3), inset 0 0 12px rgba(0, 0, 0, 0.6);
+        }
+
+        textarea {
+            height: 115px;
+            color: #c0d0e0;
+            font-size: 18px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        /* Rename input starts at 1 line and expands only on new lines */
+        #nameInput {
+            height: auto;
+            min-height: 45px;
+            resize: none;
+            overflow: hidden;
+        }
+
+        .hint {
+            font-size: 15px;
+            color: var(--muted);
+            margin-top: 7px;
+        }
+
+        .flags {
+            display: flex;
+            flex-direction: column;
+            gap: 11px;
+        }
+
+        .flag {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 9px;
+            transition: 0.2s;
+        }
+
+        .flag:hover {
+            background: rgba(0, 247, 255, 0.06);
+        }
+
+        .flag input {
+            width: 17px;
+            height: 17px;
+            accent-color: var(--pink);
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .actions button {
+            background: transparent;
+            color: var(--green);
+            border: 3px solid var(--green);
+            padding: 11px 16px;
+            font-size: 10px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 0 14px rgba(0, 255, 157, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .actions button:hover {
+            background: rgba(0, 255, 157, 0.12);
+            box-shadow: 0 0 26px rgba(0, 255, 157, 0.5);
+            text-shadow: 0 0 10px var(--green);
+            transform: translateY(-2px);
+        }
+
+        .actions button.green {
+            color: var(--green);
+            border-color: var(--green);
+        }
+        .actions button.green:hover {
+            background: rgba(0, 255, 157, 0.12);
+            box-shadow: 0 0 26px rgba(0, 255, 157, 0.5);
+            text-shadow: 0 0 10px var(--green);
+            transform: translateY(-2px);
+        }
+
+        .actions button.secondary {
+            color: var(--cyan);
+            border-color: var(--cyan);
+        }
+
+        .actions button.secondary:hover {
+            background: rgba(0, 247, 255, 0.1);
+            box-shadow: 0 0 24px rgba(0, 247, 255, 0.45);
+        }
+
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.35);
+            transform: scale(0);
+            animation: ripple 0.55s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #080810;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a3a5a;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--cyan);
+        }
+
+        .glow-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, transparent 30%, var(--glow-color) 100%);
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 1;
+            transition: opacity 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+    <div class="glow-overlay" id="glowOverlay"></div>
+
+    <!-- Drop Overlay -->
+    <div id="dropOverlay"
+    style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.35); backdrop-filter:blur(3px); justify-content:center; align-items:center; pointer-events:none;">
+    <div style="text-align:center; color:var(--cyan); font-size:28px; text-shadow:0 0 30px var(--cyan); border:4px dashed var(--cyan); padding:40px 60px; background:rgba(0,0,0,0.35); border-radius:12px;">
+        <div style="font-size:48px; margin-bottom:12px;">↓</div>
+        DROP HERE TO IMPORT
+        <div style="font-size:14px; color:var(--muted); margin-top:10px;">.mcstructure file</div>
+    </div>
+</div>
+
+<!-- LIST SCREEN -->
+<div class="screen" id="listScreen">
+    <div class="toolbar">
+        <button class="primary" id="btnOpen">OPEN</button>
+        <button class="green" id="btnSave" disabled>APPLY + SAVE</button>
+        <button id="btnGlintAll" disabled>GLINT: OFF</button>
+        <button id="btnKeepAll" disabled>KEEP: OFF</button>
+        <div class="status" id="status">No file loaded</div>
+    </div>
+
+    <div class="list-container">
+        <div class="list-title">◆ SELECT AN ITEM ◆</div>
+        <div id="chestContainer">
+            <div class="empty-state">
+                Click <span style="color:var(--pink)">OPEN</span> to load a .mcstructure file<br />
+                or drag and drop a file onto the page
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DETAIL SCREEN -->
+<div class="screen" id="detailScreen">
+    <div class="toolbar">
+        <button class="back-btn" id="btnBack">← BACK</button>
+        <div class="status" id="detailStatus">EDITING ITEM</div>
+    </div>
+
+    <div class="detail-container">
+        <div class="card">
+            <h3>◆ IN-GAME PREVIEW</h3>
+            <div class="preview-box" id="previewBox"></div>
+        </div>
+
+        <div class="card">
+            <h3>◆ SELECTED ITEM</h3>
+            <div class="selected-header">
+                <div class="detail-icon-wrap" id="detailIconWrap">
+                    <img id="detailIcon" src="" alt="" />
+                </div>
+                <div>
+                    <div class="name" id="detailName">minecraft:item</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>◆ RENAME</h3>
+            <textarea id="nameInput" placeholder="Custom name..." rows="1"></textarea>
+            <div class="hint" id="colorHint"></div>
+        </div>
+
+        <div class="card">
+            <h3>◆ LORE</h3>
+            <textarea id="loreInput"></textarea>
+        </div>
+
+        <div class="card">
+            <h3>◆ FLAGS</h3>
+            <div class="flags">
+                <label class="flag">
+                    <input type="checkbox" id="keepCheck" />
+                    <span>Keep on Death</span>
+                </label>
+                <label class="flag">
+                    <input type="checkbox" id="glintCheck" />
+                    <span>Foil / Glint</span>
+                </label>
+                <label class="flag">
+                    <input type="checkbox" id="shortDamageCheck" />
+                    <span>Data</span>
+                </label>
+                <div id="shortDamageInputWrap" style="display:none; padding: 0 9px 14px 9px;">
+                    <input type="text" id="shortDamageInput" inputmode="numeric" placeholder="6767" />
+                    <div class="hint">Detectable by ...@s[hasitem={data=... DOES NOT WORK WITH ARMOR/TOOLS that have a durability property.</div>
+                </div>
+                <label class="flag" id="unbreakableFlag" style="display:none">
+                    <input type="checkbox" id="unbreakableCheck" />
+                    <span>Unbreakable</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Actions buttons removed per user request -->
+    </div>
+</div>
+
+<input type="file" id="fileInput" accept=".mcstructure" hidden />
+
+<script type="importmap">
+    {
+        "imports": {
+            "nbtify": "https://cdn.jsdelivr.net/npm/nbtify@2.1.0/+esm"
+        }
+    }
+</script>
+
+<script type="module">
+    import * as NBT from 'nbtify';
+
+    // ========== STATE ==========
+    let nbtRoot = null;
+    let fileName = 'edited.mcstructure';
+    let chests = [];
+    let allItems = [];
+    let currentIndex = -1;
+    // Paths of items the user has edited this session (survives refresh/re-extract)
+    const editedPaths = new Set();
+
+    // ========== DOM HELPERS ==========
+    const $ = id => document.getElementById(id);
+    const chestContainer = $('chestContainer');
+    const statusEl = $('status');
+    const glowOverlay = $('glowOverlay');
+    const tooltipEl = document.createElement('div');
+    tooltipEl.className = 'tooltip';
+    document.body.appendChild(tooltipEl);
+
+    // ========== BACKGROUND PARTICLES ==========
+    const canvas = $('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    let w, h, particles = [];
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789§';
+    const colors = ['#00f7ff', '#ff00aa', '#bf00ff', '#00ff9d', '#ffee00'];
+
+    function resize() {
+        w = canvas.width = innerWidth;
+        h = canvas.height = innerHeight;
+    }
+    addEventListener('resize', resize);
+    resize();
+
+    class Particle {
+        constructor() { this.reset(true); }
+        reset(init = false) {
+            this.x = Math.random() * w;
+            this.y = init ? Math.random() * h : h + 40;
+            this.z = Math.random() * 1.3 + 0.5;
+            this.speed = (0.22 + Math.random() * 0.45) * this.z;
+            this.char = chars[Math.floor(Math.random() * chars.length)];
+            this.color = colors[Math.floor(Math.random() * colors.length)];
+            this.baseAlpha = 0.035 + Math.random() * 0.08;
+            this.size = (9 + Math.random() * 10) * this.z;
+            this.rot = Math.random() * Math.PI * 2;
+            this.rotSpeed = (Math.random() - 0.5) * 0.012;
+            this.pulse = Math.random() * Math.PI * 2;
+        }
+        update() {
+            this.y -= this.speed;
+            this.rot += this.rotSpeed;
+            this.pulse += 0.025;
+            if (this.y < -50) this.reset();
+        }
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rot);
+            ctx.font = `${this.size}px "Press Start 2P"`;
+            ctx.fillStyle = this.color;
+            ctx.globalAlpha = Math.max(0, this.baseAlpha + Math.sin(this.pulse) * 0.03);
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = this.color;
+            ctx.fillText(this.char, 0, 0);
+            ctx.restore();
+        }
+    }
+
+    for (let i = 0; i < 48; i++) particles.push(new Particle());
+
+    (function loop() {
+        ctx.clearRect(0, 0, w, h);
+        const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.7);
+        g.addColorStop(0, 'rgba(18, 8, 36, 0.14)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+        particles.forEach(p => { p.update();
+            p.draw(); });
+        requestAnimationFrame(loop);
+    })();
+
+    // ========== § COLOR PARSER ==========
+    const MC_COLORS = {
+        '0': '#000000',
+        '1': '#0000AA',
+        '2': '#00AA00',
+        '3': '#00AAAA',
+        '4': '#AA0000',
+        '5': '#AA00AA',
+        '6': '#FFAA00',
+        '7': '#AAAAAA',
+        '8': '#555555',
+        '9': '#5555FF',
+        a: '#55FF55',
+        b: '#55FFFF',
+        c: '#FF5555',
+        d: '#FF55FF',
+        e: '#FFFF55',
+        f: '#FFFFFF',
+        // ---- Bedrock-exclusive color codes ----
+        g: '#DDD605', // Minecoin Gold
+        h: '#E3D4D1', // Material: Quartz
+        i: '#CECACA', // Material: Iron
+        j: '#443A3B', // Material: Netherite
+        m: '#971607', // Material: Redstone
+        n: '#B4684D', // Material: Copper
+        p: '#DEB12D', // Material: Gold
+        q: '#47A036', // Material: Emerald
+        s: '#2CBAA8', // Material: Diamond
+        t: '#21497B', // Material: Lapis Lazuli
+        u: '#9A5CC6', // Material: Amethyst
+        v: '#EB7114'  // Material: Resin
+    };
+
+    // Build the § color hint under RENAME from MC_COLORS so it stays in sync
+    (function buildColorHint() {
+        const el = document.getElementById('colorHint');
+        if (!el) return;
+
+        const vanilla = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f',];
+        const bedrock = ['g','h','i','j','m','n','p','q','s','t','u','v'];
+
+        const swatch = (code, label) => {
+            const hex = MC_COLORS[code] || '#ffffff';
+            return `<span style="color:${hex};font-weight:normal;text-shadow:none;font-size:15px;">${label || '§' + code}</span>`;
+        };
+
+        el.innerHTML =
+            vanilla.map(c => swatch(c)).join(' ') +
+            ' ' +
+            bedrock.map(c => swatch(c)).join(' ') +
+            ' ' +
+            swatch('r', '§r');
+    })();
+
+    function parseMC(text) {
+        if (!text) return '';
+        let html = '';
+        let i = 0;
+        let color = '#FFFFFF';
+        let bold = false,
+            italic = false;
+
+        while (i < text.length) {
+            if (text[i] === '§' && i + 1 < text.length) {
+                const code = text[i + 1].toLowerCase();
+
+                // §x§R§R§G§G§B§B — true-colour hex (Bedrock 1.16+)
+                if (code === 'x') {
+                    let hex = '';
+                    let j = i + 2;
+                    for (let n = 0; n < 6; n++) {
+                        if (text[j] === '§' && j + 1 < text.length && /[0-9a-f]/i.test(text[j + 1])) {
+                            hex += text[j + 1];
+                            j += 2;
+                        } else break;
+                    }
+                    if (hex.length === 6) { color = '#' + hex; i = j; }
+                    else i += 2;
+                    continue;
+                }
+
+                i += 2;
+                if (MC_COLORS[code]) color = MC_COLORS[code];
+                else if (code === 'l') bold = true;
+                else if (code === 'o') italic = true;
+                else if (code === 'r') { color = '#FFFFFF';
+                    bold = italic = false; }
+                continue;
+            }
+            // Convert \n to <br> to guarantee line breaks
+            if (text[i] === '\n') {
+                html += `<br>`;
+                i++;
+                continue;
+            }
+            const ch = text[i].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            let style = `color:${color}`;
+            if (bold) style += ';font-weight:bold';
+            if (italic) style += ';font-style:italic';
+            html += `<span style="${style}">${ch}</span>`;
+            i++;
+        }
+        return html;
+    }
+
+    function getFirstColorFromName(name) {
+        if (!name) return 'f';
+        let colorCode = 'f';
+        let lastWasReset = false;
+        let foundColor = false;
+
+        for (let i = 0; i < name.length; i++) {
+            if (name[i] === '§' && i + 1 < name.length) {
+                const code = name[i + 1].toLowerCase();
+
+                // §x§R§R§G§G§B§B — true-colour hex
+                if (code === 'x') {
+                    let hex = '';
+                    let j = i + 2;
+                    for (let n = 0; n < 6; n++) {
+                        if (name[j] === '§' && j + 1 < name.length && /[0-9a-f]/i.test(name[j + 1])) {
+                            hex += name[j + 1];
+                            j += 2;
+                        } else break;
+                    }
+                    if (hex.length === 6) {
+                        if (lastWasReset || !foundColor) {
+                            colorCode = '#' + hex;
+                            foundColor = true;
+                            lastWasReset = false;
+                        }
+                        i = j - 1;
+                    }
+                    continue;
+                }
+
+                if (code === 'r') {
+                    lastWasReset = true;
+                } else if (MC_COLORS[code]) {
+                    if (lastWasReset || !foundColor) {
+                        colorCode = code;
+                        foundColor = true;
+                        lastWasReset = false;
+                    }
+                }
+                i++;
+            }
+        }
+        return colorCode;
+    }
+
+    function hasColorCode(str) {
+        return /§([0-9a-gijmnpqstuv]|x)/i.test(str || '');
+    }
+
+    // ========== TOOL / ARMOR DETECTION ==========
+    // Only tools and armor get the Unbreakable flag exposed in the UI.
+    function isToolOrArmor(itemName) {
+        const raw = String(itemName || '').replace(/^minecraft:/i, '').toLowerCase().trim();
+        if (!raw) return false;
+
+        const suffixes = [
+            '_pickaxe', '_axe', '_shovel', '_hoe', '_sword',
+            '_helmet', '_chestplate', '_leggings', '_boots'
+        ];
+        for (const s of suffixes) {
+            if (raw.endsWith(s)) return true;
+        }
+
+        const exact = new Set([
+            'shears', 'flint_and_steel', 'fishing_rod', 'carrot_on_a_stick',
+            'warped_fungus_on_a_stick', 'shield', 'elytra', 'bow', 'crossbow',
+            'trident', 'brush', 'mace',
+            'leather_horse_armor', 'iron_horse_armor', 'golden_horse_armor',
+            'diamond_horse_armor', 'netherite_horse_armor',
+            'turtle_helmet'
+        ]);
+        return exact.has(raw);
+    }
+
+    function updatePreview() {
+        // Raw item id (e.g. minecraft:anvil) when no custom name is set
+        const rawItemName = (currentIndex >= 0 && allItems[currentIndex])
+            ? allItems[currentIndex].name
+            : 'minecraft:item';
+
+        let name = ($('nameInput').value || '').trim();
+        if (!name) {
+            name = rawItemName; // show minecraft:(name) when empty
+        }
+
+        // ---- NAME ----
+        // If the user typed any § color → use normal parseMC
+        // Otherwise apply pure CSS defaults (italic + color)
+        let nameHtml;
+        if (hasColorCode(name)) {
+            nameHtml = parseMC(name);
+        } else {
+            const isGlint = $('glintCheck') && $('glintCheck').checked;
+            const color = isGlint ? '#55FFFF' : '#FFFFFF'; // §b or white
+            nameHtml = `<span style="color:${color};font-style:italic">${name
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
+        }
+
+        // ---- LORE + KEEP ----
+        // Build the full body so Minecraft color/style state carries across lines
+        let lore = $('loreInput').value || '';
+        let body = lore;
+        if ($('keepCheck') && $('keepCheck').checked) {
+            if (body) body += '\n';
+            body += 'This item is not lost on death';
+        }
+
+        let loreHtml = '';
+        if (body) {
+            if (hasColorCode(body)) {
+                // At least one § color exists → let the real Minecraft parser
+                // handle everything (colors carry until a new § changes them)
+                loreHtml = parseMC(body);
+            } else {
+                // Completely plain text → apply italic dark-pink default
+                const safe = body
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br>');
+                loreHtml = `<span style="color:#AA00AA;font-style:italic">${safe}</span>`;
+            }
+        }
+
+        let html = `<div class="name">${nameHtml}</div>`;
+        if (loreHtml) {
+            html += `<div class="lore">${loreHtml}</div>`;
+        }
+
+        $('previewBox').innerHTML = html;
+    }
+
+    $('nameInput').addEventListener('input', updatePreview);
+
+    // Auto-resize Rename input to 1 line, expanding on paragraphs
+    const renameInput = $('nameInput');
+    const autoResize = (el) => {
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
+    };
+    renameInput.addEventListener('input', () => {
+        autoResize(renameInput);
+    });
+    autoResize(renameInput);
+    $('loreInput').addEventListener('input', updatePreview);
+
+    // ========== ITEM ICONS ==========
+    function setItemIcon(imgElement, itemName) {
+        imgElement.style.background = '';
+        imgElement.style.opacity = '1';
+        imgElement.onerror = null;
+        imgElement.onload = null;
+        imgElement.referrerPolicy = 'no-referrer';
+        imgElement.removeAttribute('src');
+
+        let raw = String(itemName || '').replace(/^minecraft:/i, '').toLowerCase().trim();
+        if (!raw) {
+            imgElement.style.background = '#333';
+            imgElement.style.opacity = '0.6';
+            return;
+        }
+
+        // Java / display-name aliases (item IDs)
+        const idAliases = {
+            'wooden_door': 'oak_door',
+            'wooden_button': 'oak_button',
+            'wooden_pressure_plate': 'oak_pressure_plate',
+            'wooden_trapdoor': 'oak_trapdoor',
+            'wooden_fence': 'oak_fence',
+            'wooden_fence_gate': 'oak_fence_gate',
+            'wooden_slab': 'oak_slab',
+            'wooden_stairs': 'oak_stairs',
+            'wooden_planks': 'oak_planks',
+            'wooden_sign': 'oak_sign',
+            'sign': 'oak_sign',
+            'boat': 'oak_boat',
+            'chest_boat': 'oak_chest_boat',
+            'grass': 'grass_block',
+            'tallgrass': 'short_grass',
+            'double_plant': 'sunflower',
+            'waterlily': 'lily_pad',
+            'reeds': 'sugar_cane',
+            'fish': 'cod',
+            'cooked_fish': 'cooked_cod',
+            'clownfish': 'tropical_fish',
+            'puffer_fish': 'pufferfish',
+            'melon_block': 'melon',
+            'speckled_melon': 'glistering_melon_slice',
+            'netherbrick': 'nether_brick',
+            'nether_brick_item': 'nether_brick',
+            'fireball': 'fire_charge',
+            'fireworks': 'firework_rocket',
+            'firework': 'firework_rocket',
+            'record_13': 'music_disc_13',
+            'record_cat': 'music_disc_cat',
+            'record_blocks': 'music_disc_blocks',
+            'record_chirp': 'music_disc_chirp',
+            'record_far': 'music_disc_far',
+            'record_mall': 'music_disc_mall',
+            'record_mellohi': 'music_disc_mellohi',
+            'record_stal': 'music_disc_stal',
+            'record_strad': 'music_disc_strad',
+            'record_ward': 'music_disc_ward',
+            'record_11': 'music_disc_11',
+            'record_wait': 'music_disc_wait',
+            'empty_map': 'map',
+            'book_and_quill': 'writable_book',
+            'redstone_dust': 'redstone',
+            'bed': 'red_bed',
+            'skull': 'skeleton_skull',
+            'banner': 'white_banner',
+            'concrete': 'white_concrete',
+            'concrete_powder': 'white_concrete_powder',
+            'stained_glass': 'white_stained_glass',
+            'stained_glass_pane': 'white_stained_glass_pane',
+            'carpet': 'white_carpet',
+            'wool': 'white_wool',
+            'undyed_shulker_box': 'shulker_box',
+            'spawn_egg': 'pig_spawn_egg',
+            'monster_egg': 'infested_stone',
+            'light_block': 'light',
+            'frame': 'item_frame',
+            'glow_frame': 'glow_item_frame',
+            'froglight': 'ochre_froglight',
+            'medicine': 'glass_bottle',
+        };
+
+        // Extra texture filenames that differ from the item id
+        // (Java latest removed some item/*.png files; Bedrock uses different names)
+        const fileAliases = {
+            'bed': ['red_bed', 'bed_red', 'white_bed', 'bed_white'],
+            'red_bed': ['bed_red'],
+            'crossbow': ['crossbow_standby', 'crossbow_arrow'],
+            'wooden_door': ['oak_door', 'door_wood'],
+            'oak_door': ['door_wood'],
+            'enchanted_book': ['book_enchanted'],
+            'writable_book': ['book_writable'],
+            'written_book': ['book_written'],
+            'firework_star': ['fireworks_charge'],
+            'golden_helmet': ['gold_helmet'],
+            'golden_chestplate': ['gold_chestplate'],
+            'golden_leggings': ['gold_leggings'],
+            'golden_boots': ['gold_boots'],
+            'golden_sword': ['gold_sword'],
+            'golden_pickaxe': ['gold_pickaxe'],
+            'golden_axe': ['gold_axe'],
+            'golden_shovel': ['gold_shovel'],
+            'golden_hoe': ['gold_hoe'],
+            'golden_apple': ['apple_golden'],
+        };
+
+        const javaId = idAliases[raw] || raw;
+        const extra = fileAliases[raw] || fileAliases[javaId] || [];
+        const ids = [...new Set([raw, javaId, ...extra])];
+
+        function titleCase(id) {
+            return id.split('_').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('_');
+        }
+
+        const JAVA = 'https://cdn.jsdelivr.net/gh/misode/mcmeta@assets/assets/minecraft/textures';
+        const JAVA_RAW = 'https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures';
+        const BE = 'https://raw.githubusercontent.com/Mojang/bedrock-samples/main/resource_pack/textures';
+        const WIKI = 'https://minecraft.wiki/w/Special:FilePath';
+
+        const sources = [];
+        const seen = new Set();
+        const add = (url) => {
+            if (!url || seen.has(url)) return;
+            seen.add(url);
+            sources.push(url);
+        };
+
+        // 1) Minecraft Wiki inventory icons (true inv-sprites). img src does not need CORS.
+        //    This is what actually exists for bed / crossbow / shield.
+        for (const id of ids) {
+            add(`${WIKI}/Invicon_${titleCase(id)}.png`);
+        }
+
+        // 2) Java item textures (jsDelivr then raw)
+        for (const id of ids) {
+            add(`${JAVA}/item/${id}.png`);
+        }
+
+        // 3) Official Bedrock item textures
+        for (const id of ids) {
+            add(`${BE}/items/${id}.png`);
+        }
+
+        // 4) Items that live as entity / block textures
+        if (ids.includes('shield') || raw === 'shield') {
+            add(`${JAVA}/entity/shield/shield_base.png`);
+            add(`${JAVA_RAW}/entity/shield/shield_base.png`);
+            add(`${BE}/entity/shield.png`);
+        }
+        if (raw === 'bed' || ids.includes('red_bed') || ids.includes('bed_red')) {
+            add(`${JAVA}/block/red_bed_top.png`);
+            add(`${BE}/blocks/bed_red_top.png`);
+            add(`${BE}/blocks/bed_red.png`);
+        }
+
+        // 5) Block textures as last resort
+        for (const id of ids) {
+            add(`${JAVA}/block/${id}.png`);
+            add(`${JAVA}/block/${id}_front.png`);
+            add(`${JAVA}/block/${id}_side.png`);
+            add(`${JAVA}/block/${id}_top.png`);
+            add(`${BE}/blocks/${id}.png`);
+            add(`${BE}/blocks/${id}_front.png`);
+            add(`${BE}/blocks/${id}_top.png`);
+        }
+
+        let attempt = 0;
+        function tryNext() {
+            if (attempt >= sources.length) {
+                imgElement.style.background = '#2a2a3a';
+                imgElement.style.opacity = '0.55';
+                imgElement.removeAttribute('src');
+                imgElement.onerror = null;
+                return;
+            }
+            imgElement.src = sources[attempt++];
+        }
+
+        imgElement.onerror = tryNext;
+        imgElement.onload = () => {
+            imgElement.style.opacity = '1';
+            imgElement.style.background = '';
+            imgElement.onerror = null;
+        };
+
+        tryNext();
+    }
+
+    // ========== EXTRACT CHESTS & ITEMS (FIXED) ==========
+    function extractChests(root) {
+        const chestMap = new Map();
+        const allItems = [];
+
+        function unwrap(obj) {
+            if (obj && typeof obj === 'object' && 'value' in obj && ('type' in obj || Object.keys(obj).length <= 3)) {
+                return obj.value;
+            }
+            return obj;
+        }
+
+        function getContainerKey(path) {
+            if (!path) return 'root';
+            const parts = path.split('.');
+            if (parts[parts.length - 1] === 'Items') {
+                parts.pop();
+            }
+            return parts.join('.') || 'root';
+        }
+
+        function processItem(rawItem, path, containerKey, idx) {
+            const item = unwrap(rawItem);
+            if (!item || typeof item !== 'object') return;
+
+            const nameVal = item.Name ?? item.name;
+            if (nameVal === undefined) return;
+
+            const name = unwrap(nameVal) ?? 'unknown';
+            const count = unwrap(item.Count ?? item.count) ?? 1;
+            const slot = unwrap(item.Slot ?? item.slot) ?? idx;
+
+            let displayName = '';
+            const tag = unwrap(item.tag ?? item.Tag);
+            if (tag) {
+                const display = unwrap(tag.display);
+                if (display) {
+                    displayName = unwrap(display.Name) ?? '';
+                }
+            }
+
+            const itemPath = path ? `${path}[${idx}]` : `Items[${idx}]`;
+            const itemEntry = {
+                ref: item,
+                name: String(name),
+                count: Number(count),
+                displayName: String(displayName),
+                slot: Number(slot),
+                path: itemPath,
+                chestKey: containerKey,
+                edited: editedPaths.has(itemPath)
+            };
+
+            if (!chestMap.has(containerKey)) {
+                chestMap.set(containerKey, {
+                    key: containerKey,
+                    name: `Chest ${chestMap.size + 1}`,
+                    items: []
+                });
+            }
+            chestMap.get(containerKey).items.push(itemEntry);
+            allItems.push(itemEntry);
+        }
+
+        // --- FIXED: only look for block_entity_data → Items, skip block_palette ---
+        function findBlockEntityData(obj, path = '') {
+            if (!obj || typeof obj !== 'object') return;
+            const data = unwrap(obj);
+
+            for (const [key, value] of Object.entries(data)) {
+                const newPath = path ? `${path}.${key}` : key;
+
+                if (key === 'block_entity_data') {
+                    const bed = unwrap(value);
+                    if (bed && bed.Items && Array.isArray(bed.Items)) {
+                        const containerKey = getContainerKey(newPath + '.Items');
+                        bed.Items.forEach((rawItem, idx) => {
+                            processItem(rawItem, newPath + '.Items', containerKey, idx);
+                        });
+                    }
+                    // do NOT recurse into block_entity_data — we already processed its Items
+                } else if (key === 'block_palette') {
+                    // skip block_palette entirely — it never contains chest contents
+                    continue;
+                } else {
+                    findBlockEntityData(value, newPath);
+                }
+            }
+        }
+
+        findBlockEntityData(root);
+        return { chests: Array.from(chestMap.values()), allItems };
+    }
+
+    // ========== TOOLTIP (always shows at least the name) ==========
+    // Enchantment display feature completely removed.
+
+    function unwrap(obj) {
+        if (obj && typeof obj === 'object' && 'value' in obj && ('type' in obj || Object.keys(obj).length <= 3)) {
+            return obj.value;
+        }
+        return obj;
+    }
+
+    /** True if the item currently has enchantment glint / foil */
+    function itemHasGlint(item) {
+        if (!item || !item.ref) return false;
+        const tag = item.ref.tag?.value || item.ref.tag;
+        if (!tag) return false;
+        if (tag.ench !== undefined && tag.ench !== null) return true;
+        // Bedrock / component-style foil flag if present
+        if (tag['minecraft:enchantment_glint_override'] !== undefined) return true;
+        if (tag.Foil === true || tag.foil === true) return true;
+        return false;
+    }
+
+    function showTooltip(e, item) {
+        if (!item) {
+            tooltipEl.style.display = 'none';
+            return;
+        }
+
+        let html = '';
+
+        // Always show a name — fallback to raw name if no displayName
+        const displayName = item.displayName || item.name.replace('minecraft:', '');
+        html += `<div class="name">${parseMC('§d' + displayName)}</div>`;
+
+        // Enchantments (Feature removed by user request)
+
+        // Lore + keep in one parse so last § color carries into keep
+        const tag = item.ref.tag?.value || item.ref.tag;
+        const display = tag?.display?.value || tag?.display;
+        const lore = display?.Lore?.value ?? display?.Lore;
+        let body = '';
+        if (lore != null && lore !== '') {
+            if (Array.isArray(lore)) {
+                body = lore.map(line => String(line?.value ?? line)).join('\n');
+            } else {
+                body = String(lore).replace(/\\n/g, '\n');
+            }
+        }
+        if (tag?.['minecraft:keep_on_death'] !== undefined) {
+            if (body) body += '\n';
+            body += 'This item is not lost on death';
+        }
+        if (body) {
+            html += `<div class="lore">${parseMC(body)}</div>`;
+        }
+
+        tooltipEl.innerHTML = html;
+        tooltipEl.style.display = 'block';
+
+        let x = e.clientX + 10;
+        let y = e.clientY + 10;
+        const rect = tooltipEl.getBoundingClientRect();
+        if (x + rect.width > window.innerWidth) {
+            x = e.clientX - rect.width - 10;
+        }
+        if (y + rect.height > window.innerHeight) {
+            y = e.clientY - rect.height - 10;
+        }
+        tooltipEl.style.left = x + 'px';
+        tooltipEl.style.top = y + 'px';
+
+        // Glow effect (uses first color from display name)
+        const colorCode = getFirstColorFromName(item.displayName || item.name.replace('minecraft:', ''));
+        const newGlow = colorCode.startsWith('#') ? colorCode : (MC_COLORS[colorCode] || '#00f7ff');
+        document.documentElement.style.setProperty('--glow-color', newGlow);
+        glowOverlay.style.opacity = 0.15;
+    }
+
+    function hideTooltip() {
+        tooltipEl.style.display = 'none';
+        glowOverlay.style.opacity = 0.1;
+    }
+
+    // ========== RENDER LIST ==========
+    function renderList() {
+        chestContainer.innerHTML = '';
+
+        if (chests.length === 0) {
+            chestContainer.innerHTML =
+                `<div class="empty-state">No items found in chests</div>`;
+            return;
+        }
+
+        chests.forEach((chest, cIdx) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chest-wrapper';
+
+            const header = document.createElement('div');
+            header.className = 'chest-header';
+            header.textContent = chest.name;
+            wrapper.appendChild(header);
+
+            const grid = document.createElement('div');
+            grid.className = 'chest-grid';
+
+            chest.items.forEach((item, iIdx) => {
+                const slot = document.createElement('div');
+                slot.className = 'chest-slot';
+                const idxInAll = allItems.indexOf(item);
+                slot.dataset.index = String(idxInAll);
+
+                // Glint (foil) from NBT tag
+                if (itemHasGlint(item)) {
+                    slot.classList.add('has-glint');
+                }
+
+                // Edited this session
+                if (item.edited || editedPaths.has(item.path)) {
+                    slot.classList.add('edited');
+                    const star = document.createElement('div');
+                    star.className = 'edit-star';
+                    star.textContent = '★';
+                    star.title = 'Edited';
+                    slot.appendChild(star);
+                }
+
+                const icon = document.createElement('img');
+                setItemIcon(icon, item.name);
+                slot.appendChild(icon);
+
+                if (item.count > 1) {
+                    const count = document.createElement('div');
+                    count.className = 'count';
+                    count.textContent = item.count;
+                    slot.appendChild(count);
+                }
+
+                slot.addEventListener('click', (e) => {
+                    const idx = Number(slot.dataset.index);
+                    if (!isNaN(idx) && idx >= 0 && idx < allItems.length) {
+                        openDetail(idx);
+                    }
+                });
+
+                slot.addEventListener('mousemove', (e) => {
+                    const idx = Number(slot.dataset.index);
+                    if (!isNaN(idx) && idx >= 0 && idx < allItems.length) {
+                        showTooltip(e, allItems[idx]);
+                    } else {
+                        hideTooltip();
+                    }
+                });
+                slot.addEventListener('mouseleave', hideTooltip);
+
+                grid.appendChild(slot);
+            });
+
+            wrapper.appendChild(grid);
+            chestContainer.appendChild(wrapper);
+        });
+
+        updateAllButtons();
+    }
+
+    // ========== FILE LOAD / SAVE ==========
+    $('btnOpen').onclick = () => $('fileInput').click();
+
+    $('fileInput').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            const buffer = await file.arrayBuffer();
+            fileName = file.name;
+
+            nbtRoot = await NBT.read(buffer, { endian: 'little' });
+
+            editedPaths.clear();
+            const result = extractChests(nbtRoot);
+            chests = result.chests;
+            allItems = result.allItems;
+
+            statusEl.textContent =
+                `LOADED: ${fileName} • ${allItems.length} item(s) in ${chests.length} chest(s)`;
+            $('btnSave').disabled = false;
+            $('btnGlintAll').disabled = false;
+            $('btnKeepAll').disabled = false;
+
+            renderList();
+        } catch (err) {
+            console.error(err);
+            alert('Failed to load file:\n' + err.message);
+        }
+    };
+
+    // ========== DRAG AND DROP ==========
+    const dropOverlay = document.getElementById('dropOverlay');
+    document.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropOverlay.style.display = 'flex';
+    });
+    document.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropOverlay.style.display = 'none';
+    });
+    document.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropOverlay.style.display = 'none';
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            const input = $('fileInput');
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            input.files = dataTransfer.files;
+            input.dispatchEvent(new Event('change'));
+        }
+    });
+
+    // Build the next save name:
+    //  - strips every previous "_edited" and "(n)" suffix
+    //  - bumps the trailing number (temp12 -> temp13, temp -> temp1)
+    //  - never produces parentheses
+    function getNextSaveName(name) {
+        let base = String(name).replace(/ /g, '_');
+
+        const extIndex = base.lastIndexOf('.');
+        let extPart = '';
+        if (extIndex > 0) {
+            extPart = base.substring(extIndex);
+            base = base.substring(0, extIndex);
+        }
+
+        // Remove all trailing "_edited" / "(number)" suffixes, repeatedly
+        let changed = true;
+        while (changed) {
+            changed = false;
+            const stripped = base
+                .replace(/_?\(\s*\d+\s*\)$/i, '')
+                .replace(/_edited$/i, '');
+            if (stripped !== base) {
+                base = stripped;
+                changed = true;
+            }
+        }
+        base = base.replace(/_+$/, '');
+        if (!base) base = 'file';
+
+        // Bump trailing number, or add "1" when there is none
+        const m = base.match(/^(.*?)(\d+)$/);
+        if (m) {
+            const digits = m[2];
+            const next = String(parseInt(digits, 10) + 1);
+            const pad = digits.length > 1 && digits.charAt(0) === '0' ? digits.length : 0;
+            base = m[1] + next.padStart(pad, '0');
+        } else {
+            base = base + '1';
+        }
+
+        return base + extPart;
+    }
+
+    async function doSave() {
+        if (!nbtRoot) return;
+        try {
+            const newFileName = getNextSaveName(fileName);
+
+            const out = await NBT.write(nbtRoot);
+            const blob = new Blob([out], { type: 'application/octet-stream' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = newFileName;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            fileName = newFileName; // keep counting up on the next save
+            statusEl.textContent = `SAVED: ${newFileName}`;
+        } catch (err) {
+            console.error(err);
+            alert('Save failed:\n' + err.message);
+        }
+    }
+
+
+
+    // ========== DETAIL VIEW ==========
+    function openDetail(idx) {
+        currentIndex = idx;
+        const it = allItems[idx];
+
+        $('detailName').textContent = it.name;
+        const detailIcon = $('detailIcon');
+        detailIcon.style.display = 'block';
+        detailIcon.style.opacity = '1';
+        setItemIcon(detailIcon, it.name);
+        $('detailStatus').textContent = 'EDITING: ' + it.name.replace('minecraft:', '');
+
+        let nameVal = it.displayName || '';
+        let loreVal = '';
+        let keep = false;
+        let glint = false;
+
+        const tag = it.ref.tag?.value || it.ref.tag;
+        if (tag) {
+            const display = tag.display?.value || tag.display;
+            if (display) {
+                nameVal = display.Name?.value ?? display.Name ?? nameVal;
+                const lore = display.Lore?.value ?? display.Lore;
+                if (Array.isArray(lore)) {
+                    // Legacy: list of lines → show as multi-line in the box
+                    loreVal = lore.map(l => (l?.value ?? l)).join('\n');
+                } else if (lore != null && lore !== '') {
+                    // Correct Bedrock style: one string with \n
+                    loreVal = String(lore?.value ?? lore).replace(/\\n/g, '\n');
+                }
+            }
+            if (tag['minecraft:keep_on_death'] !== undefined) keep = true;
+            if (tag.ench) glint = true;
+        }
+
+        // ---- Short Damage (root-level Damage, TAG_Short) ----
+        const rootDamage = it.ref.Damage?.value ?? it.ref.Damage;
+        const hasShortDamage = rootDamage !== undefined && rootDamage !== null;
+        $('shortDamageCheck').checked = hasShortDamage;
+        $('shortDamageInput').value = hasShortDamage ? String(rootDamage) : '6767';
+        $('shortDamageInputWrap').style.display = hasShortDamage ? 'block' : 'none';
+
+        // ---- Unbreakable (tools / armor only) ----
+        const unbreakableVal = tag?.Unbreakable?.value ?? tag?.Unbreakable;
+        const showUnbreakable = isToolOrArmor(it.name);
+        $('unbreakableFlag').style.display = showUnbreakable ? 'flex' : 'none';
+        $('unbreakableCheck').checked = showUnbreakable ? !!unbreakableVal : false;
+
+        $('nameInput').value = nameVal;
+        $('loreInput').value = loreVal;
+        $('keepCheck').checked = keep;
+        $('glintCheck').checked = glint;
+        updatePreview();
+        updateDetailGlint();
+
+        $('listScreen').classList.add('hidden');
+        $('detailScreen').classList.add('active');
+    }
+
+    function updateDetailGlint() {
+        const wrap = $('detailIconWrap');
+        if (!wrap) return;
+        if ($('glintCheck').checked) {
+            wrap.classList.add('has-glint');
+        } else {
+            wrap.classList.remove('has-glint');
+        }
+    }
+
+    // ========== APPLY CHANGES ==========
+    function applyChanges() {
+        if (currentIndex < 0 || !allItems[currentIndex]) return;
+        const it = allItems[currentIndex];
+        const item = it.ref;
+
+        // Ensure tag structure exists
+        if (!item.tag) item.tag = {};
+        let tag = item.tag.value || item.tag;
+
+        if (!tag.display) tag.display = {};
+        let display = tag.display.value || tag.display;
+
+        const newName = $('nameInput').value.trim();
+        if (newName) {
+            display.Name = newName;
+        } else {
+            delete display.Name;
+        }
+
+        let loreText = $('loreInput').value.trim();
+        if (loreText) {
+            // Bedrock collapses completely empty lines in tooltips.
+            // Insert a space into empty lines so the game renders the gap.
+            loreText = loreText.replace(/\n\s*\n/g, '\n \n');
+
+            // Bedrock requires Lore to be a LIST of strings
+            // (even when it’s only one string that contains \n)
+            display.Lore = [loreText];
+        } else {
+            delete display.Lore;
+        }
+
+        if ($('keepCheck').checked) {
+            tag['minecraft:keep_on_death'] = new NBT.Int8(1);
+        } else {
+            delete tag['minecraft:keep_on_death'];
+        }
+
+        if ($('glintCheck').checked) {
+            if (!tag.ench) tag.ench = [];
+            // If empty, add a dummy enchant so glint shows
+            // nbtify uses Int16 for short tags (there is no NBT.Short)
+            if (Array.isArray(tag.ench) && tag.ench.length === 0) {
+                tag.ench.push({ id: new NBT.Int16(-1), lvl: new NBT.Int16(0) });
+            }
+        } else {
+            delete tag.ench;
+        }
+
+        // ---- Short Damage tag at the ROOT of the item stack (TAG_Short) ----
+        // This is the hidden background tag, NOT the int tag.Damage durability value.
+        if ($('shortDamageCheck').checked) {
+            let num = parseInt(String($('shortDamageInput').value).trim(), 10);
+            if (!Number.isFinite(num)) num = 6767;
+            num = Math.max(-32768, Math.min(32767, num));
+            item.Damage = new NBT.Int16(num);
+        } else {
+            delete item.Damage;
+        }
+
+        // ---- Unbreakable (only written when the flag is actually visible) ----
+        // Hidden for non tool/armor, so we never touch Unbreakable on those items.
+        if ($('unbreakableFlag').style.display !== 'none') {
+            if ($('unbreakableCheck').checked) {
+                tag.Unbreakable = new NBT.Int8(1);
+            } else {
+                delete tag.Unbreakable;
+            }
+        }
+
+        // Update displayName for tooltip
+        it.displayName = newName;
+
+        // Mark as edited this session (star + outline in list)
+        it.edited = true;
+        if (it.path) editedPaths.add(it.path);
+
+        // Re-render list so tooltips / glint / star stay in sync
+        renderList();
+    }
+
+    async function applyAndSave() {
+        applyChanges();
+        await doSave();
+    }
+
+    // ========== GO BACK (saves changes automatically) ==========
+    function goBack() {
+        // ✅ Save changes before leaving the detail view
+        try {
+            applyChanges();
+        } catch (err) {
+            console.error('applyChanges failed on back:', err);
+        }
+        $('detailScreen').classList.remove('active');
+        $('listScreen').classList.remove('hidden');
+    }
+
+    $('btnBack').onclick = goBack;
+
+    // ========== GLOBAL TOGGLE: GLINT FOR ALL ITEMS ==========
+    function toggleGlintAll() {
+        if (!allItems.length) return;
+
+        // If every item already has glint, remove from all; otherwise add to all
+        const allHave = allItems.every(it => {
+            const tag = it.ref.tag?.value || it.ref.tag;
+            return tag && tag.ench !== undefined && tag.ench !== null;
+        });
+
+        allItems.forEach(it => {
+            const item = it.ref;
+            if (!item.tag) item.tag = {};
+            let tag = item.tag.value || item.tag;
+
+            if (allHave) {
+                delete tag.ench;
+            } else {
+                if (!tag.ench) tag.ench = [];
+                if (Array.isArray(tag.ench) && tag.ench.length === 0) {
+                    tag.ench.push({ id: new NBT.Int16(-1), lvl: new NBT.Int16(0) });
+                }
+            }
+
+            it.edited = true;
+            if (it.path) editedPaths.add(it.path);
+        });
+
+        renderList();
+        statusEl.textContent = allHave
+            ? 'GLINT REMOVED FROM ALL ITEMS'
+            : 'GLINT APPLIED TO ALL ITEMS';
+    }
+
+    // ========== GLOBAL TOGGLE: KEEP ON DEATH FOR ALL ITEMS ==========
+    function toggleKeepAll() {
+        if (!allItems.length) return;
+
+        // If every item already has keep_on_death, remove from all; otherwise add to all
+        const allHave = allItems.every(it => {
+            const tag = it.ref.tag?.value || it.ref.tag;
+            return tag && tag['minecraft:keep_on_death'] !== undefined;
+        });
+
+        allItems.forEach(it => {
+            const item = it.ref;
+            if (!item.tag) item.tag = {};
+            let tag = item.tag.value || item.tag;
+
+            if (allHave) {
+                delete tag['minecraft:keep_on_death'];
+            } else {
+                tag['minecraft:keep_on_death'] = new NBT.Int8(1);
+            }
+
+            it.edited = true;
+            if (it.path) editedPaths.add(it.path);
+        });
+
+        renderList();
+        statusEl.textContent = allHave
+            ? 'KEEP ON DEATH REMOVED FROM ALL ITEMS'
+            : 'KEEP ON DEATH APPLIED TO ALL ITEMS';
+    }
+
+    // ========== UPDATE GLOBAL BUTTON LABELS FROM CURRENT STATE ==========
+    function updateAllButtons() {
+        const glintAll = allItems.length > 0 && allItems.every(it => {
+            const tag = it.ref.tag?.value || it.ref.tag;
+            return tag && tag.ench !== undefined && tag.ench !== null;
+        });
+        const keepAll = allItems.length > 0 && allItems.every(it => {
+            const tag = it.ref.tag?.value || it.ref.tag;
+            return tag && tag['minecraft:keep_on_death'] !== undefined;
+        });
+        const gBtn = $('btnGlintAll');
+        const kBtn = $('btnKeepAll');
+        if (gBtn) gBtn.textContent = glintAll ? 'GLINT: ON' : 'GLINT: OFF';
+        if (kBtn) kBtn.textContent = keepAll ? 'KEEP: ON' : 'KEEP: OFF';
+    }
+
+    // ========== BUTTON BINDINGS ==========
+    $('btnGlintAll').onclick = toggleGlintAll;
+    $('btnKeepAll').onclick = toggleKeepAll;
+    $('btnSave').onclick = applyAndSave;
+
+    // 'btnClearLore' removed per user request
+
+    // Also apply when checkboxes change (so tooltip stays fresh)
+    $('keepCheck').onchange = () => { applyChanges(); updatePreview(); };
+    $('glintCheck').onchange = () => { applyChanges(); updateDetailGlint(); };
+
+    // Short Damage: toggle the hidden input box, then apply
+    $('shortDamageCheck').onchange = () => {
+        $('shortDamageInputWrap').style.display = $('shortDamageCheck').checked ? 'block' : 'none';
+        applyChanges();
+    };
+
+    // Unbreakable (only relevant when the flag is visible)
+    $('unbreakableCheck').onchange = () => { applyChanges(); };
+
+    // Apply on name/lore input with a small delay (debounce)
+    let applyTimer = null;
+    $('nameInput').addEventListener('input', () => {
+        updatePreview();
+        clearTimeout(applyTimer);
+        applyTimer = setTimeout(applyChanges, 300);
+    });
+    $('loreInput').addEventListener('input', () => {
+        updatePreview();
+        clearTimeout(applyTimer);
+        applyTimer = setTimeout(applyChanges, 300);
+    });
+    $('shortDamageInput').addEventListener('input', () => {
+        clearTimeout(applyTimer);
+        applyTimer = setTimeout(applyChanges, 300);
+    });
+
+    // Ripple effect on all buttons
+    document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            if (this.disabled) return;
+            const ripple = document.createElement('span');
+            ripple.className = 'ripple';
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            ripple.style.width = ripple.style.height = size + 'px';
+            ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+            ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+            this.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 550);
+        });
+    });
+
+    // ========== KEYBOARD SHORTCUT: ESC to go back ==========
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && $('detailScreen').classList.contains('active')) {
+            goBack();
+        }
+    });
+
+    console.log('✦ Bedrock .mcstructure Item Editor loaded ✦');
+    console.log('• Tooltips now show for ALL items (even without lore/custom name)');
+    console.log('• Changes auto-save when you go BACK (ESC or click ←)');
+    console.log('• Tooltips update live with your edits');
+    console.log('• "Chest 1" bug fixed — block_palette is skipped');
+</script>
+</body>
+</html>
