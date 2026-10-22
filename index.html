@@ -7,9 +7,15 @@
         <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0a12'/%3E%3Crect x='5' y='5' width='22' height='22' fill='%231a0a30' stroke='%23bf00ff' stroke-width='2'/%3E%3Crect x='12' y='12' width='8' height='8' fill='none' stroke='%23bf00ff' stroke-width='2'/%3E%3C/svg%3E" />
     <style>
         @font-face {
-            font-family: 'Mojang';
-            src: url('https://cdn.jsdelivr.net/gh/IdreesInc/Minecraft-Font@master/Minecraft.ttf') format('truetype');
+            font-family: 'Minecraft';
+            src: url('https://cdn.jsdelivr.net/gh/IdreesInc/Minecraft-Font@main/Minecraft.otf') format('opentype');
             font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Minecraft';
+            src: url('https://cdn.jsdelivr.net/gh/IdreesInc/Minecraft-Font@main/Minecraft-Bold.otf') format('opentype');
+            font-weight: bold;
             font-style: normal;
         }
     </style>
@@ -32,9 +38,14 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Mojang', 'Minecraft', sans-serif;
+            font-family: 'Minecraft', sans-serif;
             font-size: 22px;
-            word-spacing: 6px; /* ADDED THIS LINE */
+            word-spacing: 0px; /* ADDED THIS LINE */
+            font-style: normal;
+            font-weight: normal;
+            -webkit-font-smoothing: none;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeSpeed;
         }
 
         body {
@@ -130,7 +141,7 @@
             border-radius: 2px;
             cursor: pointer;
             font-size: 22px;
-            letter-spacing: 0.5px;
+            letter-spacing: normal;
             text-transform: uppercase;
             transition: all 0.2s;
             box-shadow: 0 0 12px rgba(0, 247, 255, 0.25);
@@ -286,7 +297,7 @@
             color: white;
             text-shadow: 1px 1px 0 #000;
             font-size: 15px;
-            font-family: 'Mojang', sans-serif;
+            font-family: 'Minecraft', sans-serif;
             z-index: 3;
         }
 
@@ -392,7 +403,7 @@
             padding: 8px 10px;
             max-width: 500px;
             width: max-content;
-            font-family: 'Mojang', monospace;
+            font-family: 'Minecraft', monospace;
             font-size: 11px;
             color: #ffffff;
             display: none;
@@ -594,7 +605,7 @@
             max-width: 500px;
             width: max-content;
             min-width: 0;
-            font-family: 'Mojang', monospace;
+            font-family: 'Minecraft', monospace;
             font-size: 11px;
             color: #ffffff;
             line-height: 1.25;
@@ -634,7 +645,7 @@
             font-size: 18px;
             transition: all 0.25s;
             box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.6);
-            word-spacing: 6px; /* ADDED THIS LINE */
+            word-spacing: 0px; /* ADDED THIS LINE */
         }
 
         input[type="text"]:focus,
@@ -984,7 +995,7 @@
         '0': '#000000',
         '1': '#0000AA',
         '2': '#00AA00',
-        '3': '#00AAAA',
+        '3': '#00BCBC',
         '4': '#AA0000',
         '5': '#AA00AA',
         '6': '#FFAA00',
@@ -999,17 +1010,17 @@
         f: '#FFFFFF',
         // ---- Bedrock-exclusive color codes ----
         g: '#DDD605', // Minecoin Gold
-        h: '#E3D4D1', // Material: Quartz
-        i: '#CECACA', // Material: Iron
+        h: '#E0D6BF', // Material: Quartz
+        i: '#B2BEC2', // Material: Iron
         j: '#443A3B', // Material: Netherite
         m: '#971607', // Material: Redstone
-        n: '#B4684D', // Material: Copper
+        n: '#D57C5F', // Material: Copper
         p: '#DEB12D', // Material: Gold
         q: '#47A036', // Material: Emerald
-        s: '#2CBAA8', // Material: Diamond
-        t: '#21497B', // Material: Lapis Lazuli
+        s: '#52F1FE', // Material: Diamond
+        t: '#5083FF', // Material: Lapis Lazuli
         u: '#9A5CC6', // Material: Amethyst
-        v: '#EB7114'  // Material: Resin
+        v: '#FE7F00'  // Material: Resin
     };
 
     // Build the § color hint under RENAME from MC_COLORS so it stays in sync
@@ -1075,8 +1086,7 @@
                 continue;
             }
             const ch = text[i].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            let style = `color:${color}`;
-            if (bold) style += ';font-weight:bold';
+            let style = `color:${color};font-weight:${bold ? 'bold' : 'normal'}`;
             if (italic) style += ';font-style:italic';
             html += `<span style="${style}">${ch}</span>`;
             i++;
