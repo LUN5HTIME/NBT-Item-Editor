@@ -803,9 +803,66 @@
             z-index: 1;
             transition: opacity 0.3s;
         }
+
+        /* Loading Overlay */
+        #loadingOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: rgba(10, 10, 18, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            /* Slow fade out */
+            transition: opacity 0.8s ease-in-out;
+        }
+
+        #loadingOverlay.active {
+            opacity: 1;
+            pointer-events: auto;
+            /* Instant pop in */
+            transition: opacity 0.05s ease-in;
+        }
+
+        .loading-spinner {
+            color: var(--cyan);
+            width: 100px;
+            height: 100px;
+            filter: drop-shadow(0 0 15px var(--cyan));
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            color: var(--cyan);
+            font-size: 18px;
+            text-shadow: 0 0 10px var(--cyan);
+            animation: pulseText 1.5s infinite alternate;
+        }
+
+        @keyframes pulseText {
+            from { opacity: 0.5; }
+            to { opacity: 1; }
+        }
     </style>
 </head>
 <body>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay">
+        <svg class="loading-spinner" version="1.1" id="L6" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 100 100" xml:space="preserve">
+            <rect fill="none" stroke="currentColor" stroke-width="4" x="25" y="25" width="50" height="50">
+                <animateTransform attributeName="transform" dur="0.6s" from="0 50 50" to="180 50 50" type="rotate" id="strokeBox" attributeType="XML" begin="rectBox.end"/>
+            </rect>
+            <rect x="27" y="27" fill="currentColor" width="46" height="50">
+                <animate attributeName="height" dur="0.9s" attributeType="XML" from="50" to="0" id="rectBox" fill="freeze" begin="0s;strokeBox.end"/>
+            </rect>
+        </svg>
+        <div class="loading-text">FETCHING ITEM DATA...</div>
+    </div>
 
     <canvas id="bg-canvas"></canvas>
     <div class="glow-overlay" id="glowOverlay"></div>
@@ -937,6 +994,7 @@
     const chestContainer = $('chestContainer');
     const statusEl = $('status');
     const glowOverlay = $('glowOverlay');
+    const loadingOverlay = $('loadingOverlay');
     const tooltipEl = document.createElement('div');
     tooltipEl.className = 'tooltip';
     document.body.appendChild(tooltipEl);
@@ -1707,6 +1765,8 @@
         const file = e.target.files[0];
         if (!file) return;
 
+        loadingOverlay.classList.add('active');
+
         try {
             const buffer = await file.arrayBuffer();
             fileName = file.name;
@@ -1725,24 +1785,50 @@
             $('btnKeepAll').disabled = false;
 
             renderList();
+            
+            // Give the browser a moment to start loading the images before hiding the loader
+            setTimeout(() => {
+                loadingOverlay.classList.remove('active');
+            }, 1200);
+
         } catch (err) {
             console.error(err);
+            loadingOverlay.classList.remove('active');
             alert('Failed to load file:\n' + err.message);
         }
     };
 
     // ========== DRAG AND DROP ==========
     const dropOverlay = document.getElementById('dropOverlay');
+    let dragCounter = 0;
+
+    // 1. Show overlay when file enters the window
+    document.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dragCounter++;
+        if (dragCounter === 1) {
+            dropOverlay.style.display = 'flex';
+        }
+    });
+
+    // 2. Prevent default on dragover so the browser allows dropping
     document.addEventListener('dragover', (e) => {
         e.preventDefault();
-        dropOverlay.style.display = 'flex';
     });
+
+    // 3. Only hide overlay when the mouse actually leaves the window
     document.addEventListener('dragleave', (e) => {
         e.preventDefault();
-        dropOverlay.style.display = 'none';
+        dragCounter--;
+        if (dragCounter === 0) {
+            dropOverlay.style.display = 'none';
+        }
     });
+
+    // 4. Handle the drop
     document.addEventListener('drop', (e) => {
         e.preventDefault();
+        dragCounter = 0;
         dropOverlay.style.display = 'none';
         const files = e.dataTransfer.files;
         if (files.length > 0) {
