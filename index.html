@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>✦NBT Editor</title>
+    <meta name="color-scheme" content="only dark">
+    <meta name="darkreader-lock" content="true">
         <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0a12'/%3E%3Crect x='5' y='5' width='22' height='22' fill='%231a0a30' stroke='%23bf00ff' stroke-width='2'/%3E%3Crect x='12' y='12' width='8' height='8' fill='none' stroke='%23bf00ff' stroke-width='2'/%3E%3C/svg%3E" />
     
     <!-- Embed Meta Tags -->
@@ -31,6 +33,7 @@
         }
     </style>
     <style>
+        html { background-color: #0a0a12 !important; color-scheme: only dark; }
         :root {
             --bg: #0a0a12;
             --panel: #12121f;
@@ -122,6 +125,7 @@
             padding: 11px 16px;
             padding-left: 32px; /* Matches the content container's left gap */
             display: flex;
+            flex-wrap: nowrap; /* Prevents wrapping to a new line */
             align-items: center;
             gap: 10px;
             flex-shrink: 0;
@@ -217,6 +221,48 @@
             font-size: 22px;
             color: var(--green);
             text-shadow: 0 0 10px rgba(0, 255, 157, 0.55);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            /* Added max-width so it can transition smoothly to 0 */
+            max-width: 1000px; 
+            transition: opacity 0.4s ease, max-width 0.4s ease, margin-left 0.4s ease;
+        }
+        
+        .toolbar button {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 1100px) {
+            .toolbar {
+                padding-left: 16px;
+            }
+            .status {
+                opacity: 0; /* Fades out smoothly */
+                max-width: 0;
+                margin-left: 0;
+                pointer-events: none;
+            }
+        }
+
+        @media (max-width: 800px) {
+            .toolbar button {
+                font-size: 18px;
+                padding: 6px 10px;
+                border-width: 2px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .toolbar {
+                padding: 10px;
+                justify-content: flex-start;
+            }
+            .toolbar button {
+                font-size: 14px;
+                padding: 5px 8px;
+            }
         }
 
         /* List */
@@ -438,7 +484,6 @@
             color: #7a7a7a;
         }
         .tooltip .lore {
-            color: #ffffff;
             font-size: 11px;
             line-height: 1.25;
         }
@@ -635,7 +680,6 @@
         }
 
         .preview-box .lore {
-            color: #ffffff;
             font-size: 11px;
             line-height: 1.25;
             margin: 0;
@@ -989,6 +1033,34 @@
 <script type="module">
     import * as NBT from 'nbtify';
 
+    // ========== DECOMPRESSION HELPERS ==========
+    async function decompressBytes(bytes, format) {
+        if (typeof DecompressionStream === 'undefined') {
+            throw new Error('Your browser lacks DecompressionStream.');
+        }
+        let ds = new DecompressionStream(format === 'zlib' ? 'deflate' : format);
+        const stream = new Blob([bytes]).stream().pipeThrough(ds);
+        const buf = await new Response(stream).arrayBuffer();
+        return new Uint8Array(buf);
+    }
+
+    async function compressBytes(bytes, format) {
+        if (typeof CompressionStream === 'undefined') {
+            throw new Error('Your browser lacks CompressionStream.');
+        }
+        let cs = new CompressionStream(format === 'zlib' ? 'deflate' : format);
+        const stream = new Blob([bytes]).stream().pipeThrough(cs);
+        const buf = await new Response(stream).arrayBuffer();
+        return new Uint8Array(buf);
+    }
+
+    function toUint8Array(arr) {
+        if (arr instanceof Uint8Array) return arr;
+        if (arr instanceof Int8Array) return new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
+        if (Array.isArray(arr)) return new Uint8Array(arr);
+        return new Uint8Array(arr);
+    }
+
     // ========== STATE ==========
     let nbtRoot = null;
     let fileName = 'edited.mcstructure';
@@ -1125,40 +1197,49 @@
             swatch('r', '§r');
     })();
 
-    function parseMC(text) {
+    function parseMC(text, defaultColor = '#FFFFFF', defaultItalic = false) {
         if (!text) return '';
         let html = '';
         let i = 0;
-        let color = '#FFFFFF';
-        let bold = false,
-            italic = false;
+        let color = defaultColor;
+        let bold = false, italic = defaultItalic;
 
         while (i < text.length) {
-            if (text[i] === '§' && i + 1 < text.length) {
-                const code = text[i + 1].toLowerCase();
+            if (text[i] === '§') {
+                if (i + 1 < text.length) {
+                    const code = text[i + 1]; // Do NOT lowercase. Minecraft codes are strictly case-sensitive.
 
-                // §x§R§R§G§G§B§B — true-colour hex (Bedrock 1.16+)
-                if (code === 'x') {
-                    let hex = '';
-                    let j = i + 2;
-                    for (let n = 0; n < 6; n++) {
-                        if (text[j] === '§' && j + 1 < text.length && /[0-9a-f]/i.test(text[j + 1])) {
-                            hex += text[j + 1];
-                            j += 2;
-                        } else break;
+                    // §x§R§R§G§G§B§B — true-colour hex (Bedrock 1.16+)
+                    if (code === 'x') {
+                        let hex = '';
+                        let j = i + 2;
+                        let validHex = true;
+                        for (let n = 0; n < 6; n++) {
+                            if (text[j] === '§' && j + 1 < text.length && /[0-9a-fA-F]/i.test(text[j + 1])) {
+                                hex += text[j + 1];
+                                j += 2;
+                            } else {
+                                validHex = false;
+                                break;
+                            }
+                        }
+                        if (validHex && hex.length === 6) { color = '#' + hex; i = j; continue; }
                     }
-                    if (hex.length === 6) { color = '#' + hex; i = j; }
-                    else i += 2;
+
+                    // Standard lowercase color/format codes
+                    if (MC_COLORS[code]) { color = MC_COLORS[code]; i += 2; continue; }
+                    else if (code === 'l') { bold = true; i += 2; continue; }
+                    else if (code === 'o') { italic = true; i += 2; continue; }
+                    else if (code === 'r') { color = '#FFFFFF'; bold = italic = false; i += 2; continue; }
+                    
+                    // If it's an invalid code (uppercase, space, etc.), Minecraft hides the § and the character following it.
+                    i += 2; // Skip the § and the invalid character
+                    continue;
+                } else {
+                    // If § is the last character, hide it
+                    i++;
                     continue;
                 }
-
-                i += 2;
-                if (MC_COLORS[code]) color = MC_COLORS[code];
-                else if (code === 'l') bold = true;
-                else if (code === 'o') italic = true;
-                else if (code === 'r') { color = '#FFFFFF';
-                    bold = italic = false; }
-                continue;
             }
             // Convert \n to <br> to guarantee line breaks
             if (text[i] === '\n') {
@@ -1176,8 +1257,8 @@
     }
 
     function getFirstColorFromName(name) {
-        if (!name) return 'f';
-        let colorCode = 'f';
+        if (!name) return null;
+        let colorCode = null;
         let lastWasReset = false;
         let foundColor = false;
 
@@ -1222,7 +1303,8 @@
     }
 
     function hasColorCode(str) {
-        return /§([0-9a-gijmnpqstuv]|x)/i.test(str || '');
+        // Check for the presence of any § symbol. The parseMC function will safely handle the rest.
+        return str && str.includes('§');
     }
 
     // ========== TOOL / ARMOR DETECTION ==========
@@ -1265,12 +1347,12 @@
         // If the user typed any § color → use normal parseMC
         // Otherwise apply pure CSS defaults (italic + color)
         let nameHtml;
+        const isGlint = $('glintCheck') && $('glintCheck').checked;
+        const defaultNameColor = isGlint ? '#55FFFF' : '#FFFFFF'; // §b or white
         if (hasColorCode(name)) {
-            nameHtml = parseMC(name);
+            nameHtml = parseMC(name, defaultNameColor, true);
         } else {
-            const isGlint = $('glintCheck') && $('glintCheck').checked;
-            const color = isGlint ? '#55FFFF' : '#FFFFFF'; // §b or white
-            nameHtml = `<span style="color:${color};font-style:italic">${name
+            nameHtml = `<span style="color:${defaultNameColor};font-style:italic">${name
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
         }
 
@@ -1288,15 +1370,16 @@
             if (hasColorCode(body)) {
                 // At least one § color exists → let the real Minecraft parser
                 // handle everything (colors carry until a new § changes them)
-                loreHtml = parseMC(body);
+                loreHtml = parseMC(body, '#FF55FF', true);
             } else {
-                // Completely plain text → apply italic dark-pink default
+                // Completely plain text → apply italic pink (§d) default
                 const safe = body
                     .replace(/&/g, '&amp;')
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;')
                     .replace(/\n/g, '<br>');
-                loreHtml = `<span style="color:#AA00AA;font-style:italic">${safe}</span>`;
+                // Using standard HTML hex for Pink (§d)
+                loreHtml = `<span style="color:#FF55FF;font-style:italic">${safe}</span>`;
             }
         }
 
@@ -1509,28 +1592,53 @@
         tryNext();
     }
 
-    // ========== EXTRACT CHESTS & ITEMS (FIXED) ==========
-    function extractChests(root) {
+    // ========== EXTRACT CHESTS & ITEMS (MERGED & FIXED) ==========
+    async function extractChests(root) {
         const chestMap = new Map();
         const allItems = [];
 
-        function unwrap(obj) {
-            if (obj && typeof obj === 'object' && 'value' in obj && ('type' in obj || Object.keys(obj).length <= 3)) {
-                return obj.value;
+        // Helper to get the root data, handling both NBTify wrapper and raw NBT
+        let rootData = root.data || root;
+
+        // 1. Resolve the 'structure' data
+        let structureData = rootData.structure;
+        
+        if (!structureData) {
+            if (rootData.palette || rootData.block_indices) {
+                structureData = rootData;
+            } else {
+                console.warn("No structure or palette found in NBT root.");
+                return { chests: [], allItems: [] };
             }
-            return obj;
         }
 
-        function getContainerKey(path) {
-            if (!path) return 'root';
-            const parts = path.split('.');
-            if (parts[parts.length - 1] === 'Items') {
-                parts.pop();
+        // 2. If structureData is a ByteArray, decompress and parse it
+        const isByteArray = structureData instanceof Uint8Array || structureData instanceof Int8Array || (structureData && structureData.constructor && (structureData.constructor.name === 'Uint8Array' || structureData.constructor.name === 'Int8Array')) || Array.isArray(structureData);
+
+        if (isByteArray) {
+            try {
+                const bytes = toUint8Array(structureData);
+                let innerRoot;
+                try {
+                    innerRoot = await NBT.read(bytes, { endian: 'little' });
+                    console.log("Parsed inner structure as raw NBT.");
+                } catch (e) {
+                    console.log("Raw NBT failed, trying zlib...");
+                    const decompressedBytes = await decompressBytes(bytes, 'zlib');
+                    innerRoot = await NBT.read(decompressedBytes, { endian: 'little' });
+                    console.log("Parsed inner structure as zlib.");
+                }
+                
+                structureData = innerRoot.data || innerRoot;
+                rootData.structure = structureData; // Update the root
+                rootData.compression = new NBT.Int32(0); // Mark as uncompressed (Force TAG_Int)
+            } catch (e) {
+                console.error("Failed to parse structure byte array:", e);
+                return { chests: [], allItems: [] };
             }
-            return parts.join('.') || 'root';
         }
 
-        function processItem(rawItem, path, containerKey, idx) {
+        function processItem(rawItem, path, containerKey, idx, containerType = 'chest', slotOffset = 0) {
             const item = unwrap(rawItem);
             if (!item || typeof item !== 'object') return;
 
@@ -1539,7 +1647,7 @@
 
             const name = unwrap(nameVal) ?? 'unknown';
             const count = unwrap(item.Count ?? item.count) ?? 1;
-            const slot = unwrap(item.Slot ?? item.slot) ?? idx;
+            const slot = (unwrap(item.Slot ?? item.slot) ?? idx) + slotOffset;
 
             let displayName = '';
             const tag = unwrap(item.tag ?? item.Tag);
@@ -1566,40 +1674,129 @@
                 chestMap.set(containerKey, {
                     key: containerKey,
                     name: `Chest ${chestMap.size + 1}`,
-                    items: []
+                    items: [],
+                    type: containerType
                 });
             }
             chestMap.get(containerKey).items.push(itemEntry);
             allItems.push(itemEntry);
         }
 
-        // --- FIXED: only look for block_entity_data → Items, skip block_palette ---
-        function findBlockEntityData(obj, path = '') {
-            if (!obj || typeof obj !== 'object') return;
-            const data = unwrap(obj);
+        const pal = structureData.palette?.value ?? structureData.palette;
+        const blockPosData = pal?.default?.block_position_data?.value ?? pal?.default?.block_position_data ?? {};
 
-            for (const [key, value] of Object.entries(data)) {
-                const newPath = path ? `${path}.${key}` : key;
+        const containers = [];
+        const containerLookup = new Map();
 
-                if (key === 'block_entity_data') {
-                    const bed = unwrap(value);
-                    if (bed && bed.Items && Array.isArray(bed.Items)) {
-                        const containerKey = getContainerKey(newPath + '.Items');
-                        bed.Items.forEach((rawItem, idx) => {
-                            processItem(rawItem, newPath + '.Items', containerKey, idx);
+        for (const [posKey, posData] of Object.entries(blockPosData)) {
+            const posDataObj = unwrap(posData);
+            const bed = unwrap(posDataObj.block_entity_data);
+            if (!bed) continue;
+
+            const idVal = bed.id?.value ?? bed.id;
+            let type = typeof idVal === 'string' ? idVal.toLowerCase() : '';
+            
+            if (type === 'chest') type = 'chest';
+            else if (type === 'hopper') type = 'hopper';
+            else if (type === 'dispenser') type = 'dispenser';
+            else if (type === 'dropper') type = 'dropper';
+            else if (type.includes('shulker_box')) type = 'shulker_box';
+            else if (type === 'barrel') type = 'barrel';
+
+            if (type.includes('chest') || type.includes('hopper') || type.includes('dispenser') || type.includes('dropper') || type.includes('shulker_box') || type.includes('barrel')) {
+                const x = bed.x?.value ?? bed.x ?? 0;
+                const y = bed.y?.value ?? bed.y ?? 0;
+                const z = bed.z?.value ?? bed.z ?? 0;
+                
+                const container = { posKey, bed, type, x, y, z };
+                containers.push(container);
+                containerLookup.set(`${x},${y},${z}`, container);
+            }
+        }
+
+        // Merge adjacent chests into double chests
+        const processed = new Set();
+        const mergedContainers = [];
+
+        for (let i = 0; i < containers.length; i++) {
+            if (processed.has(containers[i])) continue;
+            const c1 = containers[i];
+            let pair = null;
+
+            if (c1.type === 'chest') {
+                const pairLead = c1.bed.pairlead?.value ?? c1.bed.pairlead;
+                const pairX = c1.bed.pairx?.value ?? c1.bed.pairx;
+                const pairZ = c1.bed.pairz?.value ?? c1.bed.pairz;
+
+                if (pairLead !== undefined && pairX !== undefined && pairZ !== undefined) {
+                    const pairKey = `${pairX},${c1.y},${pairZ}`;
+                    const foundPair = containerLookup.get(pairKey);
+                    if (foundPair && !processed.has(foundPair)) {
+                        pair = foundPair;
+                    }
+                }
+            }
+
+            if (pair) {
+                let left, right;
+                const c1Lead = c1.bed.pairlead?.value ?? c1.bed.pairlead;
+                if (c1Lead === 1) {
+                    left = c1;
+                    right = pair;
+                } else {
+                    left = pair;
+                    right = c1;
+                }
+                mergedContainers.push({ blocks: [right, left], type: 'double_chest' });
+                processed.add(c1);
+                processed.add(pair);
+            } else {
+                mergedContainers.push({ blocks: [c1], type: c1.type });
+                processed.add(c1);
+            }
+        }
+
+        // Process items for each container
+        for (const container of mergedContainers) {
+            const key = container.blocks[0].posKey;
+            const type = container.type;
+            const blocks = container.blocks;
+
+            let baseName = 'Chest';
+            if (type === 'double_chest') baseName = 'Double Chest';
+            else if (type === 'hopper') baseName = 'Hopper';
+            else if (type === 'dispenser') baseName = 'Dispenser';
+            else if (type === 'dropper') baseName = 'Dropper';
+            else if (type === 'shulker_box') baseName = 'Shulker Box';
+            else if (type === 'barrel') baseName = 'Barrel';
+
+            const name = `${baseName} ${chestMap.size + 1}`;
+
+            if (!chestMap.has(key)) {
+                chestMap.set(key, {
+                    key,
+                    name: name,
+                    items: [],
+                    type: type
+                });
+            }
+
+            for (let bIdx = 0; bIdx < blocks.length; bIdx++) {
+                const block = blocks[bIdx];
+                const bed = block.bed;
+                const itemsTag = bed.Items !== undefined ? bed.Items : bed.items;
+                if (itemsTag) {
+                    const itemsArray = unwrap(itemsTag);
+                    if (Array.isArray(itemsArray)) {
+                        const slotOffset = bIdx === 1 ? 27 : 0;
+                        itemsArray.forEach((rawItem, idx) => {
+                            processItem(rawItem, `block_${block.posKey}`, key, idx, type, slotOffset);
                         });
                     }
-                    // do NOT recurse into block_entity_data — we already processed its Items
-                } else if (key === 'block_palette') {
-                    // skip block_palette entirely — it never contains chest contents
-                    continue;
-                } else {
-                    findBlockEntityData(value, newPath);
                 }
             }
         }
 
-        findBlockEntityData(root);
         return { chests: Array.from(chestMap.values()), allItems };
     }
 
@@ -1635,9 +1832,16 @@
 
         // Always show a name — fallback to raw name if no displayName
         const displayName = item.displayName || item.name.replace('minecraft:', '');
-        html += `<div class="name">${parseMC('§d' + displayName)}</div>`;
-
-        // Enchantments (Feature removed by user request)
+        
+        let nameHtml;
+        const isGlint = itemHasGlint(item);
+        const defaultNameColor = isGlint ? '#55FFFF' : '#FFFFFF'; // §b or white
+        if (hasColorCode(displayName)) {
+            nameHtml = parseMC(displayName, defaultNameColor, true);
+        } else {
+            nameHtml = `<span style="color:${defaultNameColor};font-style:italic">${displayName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
+        }
+        html += `<div class="name">${nameHtml}</div>`;
 
         // Lore + keep in one parse so last § color carries into keep
         const tag = item.ref.tag?.value || item.ref.tag;
@@ -1656,7 +1860,12 @@
             body += 'This item is not lost on death';
         }
         if (body) {
-            html += `<div class="lore">${parseMC(body)}</div>`;
+            if (hasColorCode(body)) {
+                html += `<div class="lore">${parseMC(body, '#FF55FF', true)}</div>`;
+            } else {
+                const safe = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                html += `<div class="lore"><span style="color:#FF55FF;font-style:italic">${safe}</span></div>`;
+            }
         }
 
         tooltipEl.innerHTML = html;
@@ -1674,9 +1883,12 @@
         tooltipEl.style.left = x + 'px';
         tooltipEl.style.top = y + 'px';
 
-        // Glow effect (uses first color from display name)
-        const colorCode = getFirstColorFromName(item.displayName || item.name.replace('minecraft:', ''));
-        const newGlow = colorCode.startsWith('#') ? colorCode : (MC_COLORS[colorCode] || '#00f7ff');
+        // Glow effect (uses first color from display name, defaults to white or cyan)
+        let colorCode = getFirstColorFromName(item.displayName || item.name.replace('minecraft:', ''));
+        if (!colorCode) {
+            colorCode = isGlint ? 'b' : 'f'; // Default to cyan if glint, white if not
+        }
+        const newGlow = colorCode.startsWith('#') ? colorCode : (MC_COLORS[colorCode] || '#FFFFFF');
         document.documentElement.style.setProperty('--glow-color', newGlow);
         glowOverlay.style.opacity = 0.15;
     }
@@ -1692,7 +1904,41 @@
 
         if (chests.length === 0) {
             chestContainer.innerHTML =
-                `<div class="empty-state">No items found in chests</div>`;
+                `<div class="empty-state">
+                    No items found in chests.<br>
+                    <button id="btnToggleDebug" style="margin-top:20px; padding: 10px 20px; background: #333; color: #fff; border: 2px solid #555; cursor: pointer; font-family: inherit;">Show Raw NBT Data</button>
+                    <textarea id="debugOutput" style="display:none; width: 100%; height: 400px; margin-top: 15px; background: #000; color: #00ff00; padding: 10px; border: 1px solid #333; font-family: monospace; font-size: 12px; resize: vertical;" readonly></textarea>
+                </div>`;
+            
+            const btn = document.getElementById('btnToggleDebug');
+            const ta = document.getElementById('debugOutput');
+            if (btn && ta) {
+                btn.onclick = () => {
+                    if (ta.style.display === 'none') {
+                        ta.style.display = 'block';
+                        // Safely stringify the data, handling circular references
+                        const seen = new WeakSet();
+                        const replacer = (key, value) => {
+                            if (typeof value === 'object' && value !== null) {
+                                if (seen.has(value)) return "[Circular]";
+                                seen.add(value);
+                            }
+                            if (value instanceof Uint8Array || value instanceof Int8Array) {
+                                return `[ByteArray length: ${value.length}]`;
+                            }
+                            return value;
+                        };
+                        try {
+                            const dataToPrint = nbtRoot ? (nbtRoot.data || nbtRoot) : "No Data Loaded";
+                            ta.value = JSON.stringify(dataToPrint, replacer, 2);
+                        } catch (e) {
+                            ta.value = "Error stringifying data: " + e.message;
+                        }
+                    } else {
+                        ta.style.display = 'none';
+                    }
+                };
+            }
             return;
         }
 
@@ -1708,57 +1954,85 @@
             const grid = document.createElement('div');
             grid.className = 'chest-grid';
 
-            chest.items.forEach((item, iIdx) => {
+            let numSlots = 27;
+            let cols = 9;
+            const type = chest.type || 'chest';
+            const maxSlot = chest.items.reduce((max, item) => Math.max(max, item.slot), -1);
+            
+            if (type.includes('hopper')) {
+                numSlots = 5;
+                cols = 5;
+            } else if (type.includes('dispenser') || type.includes('dropper')) {
+                numSlots = 9;
+                cols = 3;
+            } else if (maxSlot >= 27 || type.includes('double_chest')) {
+                numSlots = 54;
+            }
+            
+            grid.style.gridTemplateColumns = `repeat(${cols}, 50px)`;
+
+            for (let i = 0; i < numSlots; i++) {
+                const item = chest.items.find(it => it.slot === i);
                 const slot = document.createElement('div');
                 slot.className = 'chest-slot';
-                const idxInAll = allItems.indexOf(item);
-                slot.dataset.index = String(idxInAll);
 
-                // Glint (foil) from NBT tag
-                if (itemHasGlint(item)) {
-                    slot.classList.add('has-glint');
-                }
+                if (item) {
+                    const idxInAll = allItems.indexOf(item);
+                    slot.dataset.index = String(idxInAll);
 
-                // Edited this session
-                if (item.edited || editedPaths.has(item.path)) {
-                    slot.classList.add('edited');
-                    const star = document.createElement('div');
-                    star.className = 'edit-star';
-                    star.textContent = '★';
-                    star.title = 'Edited';
-                    slot.appendChild(star);
-                }
-
-                const icon = document.createElement('img');
-                setItemIcon(icon, item.name);
-                slot.appendChild(icon);
-
-                if (item.count > 1) {
-                    const count = document.createElement('div');
-                    count.className = 'count';
-                    count.textContent = item.count;
-                    slot.appendChild(count);
-                }
-
-                slot.addEventListener('click', (e) => {
-                    const idx = Number(slot.dataset.index);
-                    if (!isNaN(idx) && idx >= 0 && idx < allItems.length) {
-                        openDetail(idx);
+                    // Glint (foil) from NBT tag
+                    if (itemHasGlint(item)) {
+                        slot.classList.add('has-glint');
                     }
-                });
 
-                slot.addEventListener('mousemove', (e) => {
-                    const idx = Number(slot.dataset.index);
-                    if (!isNaN(idx) && idx >= 0 && idx < allItems.length) {
-                        showTooltip(e, allItems[idx]);
-                    } else {
-                        hideTooltip();
+                    // Edited this session
+                    if (item.edited || editedPaths.has(item.path)) {
+                        slot.classList.add('edited');
+                        const star = document.createElement('div');
+                        star.className = 'edit-star';
+                        star.textContent = '★';
+                        star.title = 'Edited';
+                        slot.appendChild(star);
                     }
-                });
-                slot.addEventListener('mouseleave', hideTooltip);
+
+                    const icon = document.createElement('img');
+                    setItemIcon(icon, item.name);
+                    slot.appendChild(icon);
+
+                    if (item.count > 1) {
+                        const count = document.createElement('div');
+                        count.className = 'count';
+                        count.textContent = item.count;
+                        slot.appendChild(count);
+                    }
+
+                    slot.addEventListener('click', (e) => {
+                        const idx = Number(slot.dataset.index);
+                        if (!isNaN(idx) && idx >= 0 && idx < allItems.length) {
+                            openDetail(idx);
+                        }
+                    });
+
+                    slot.addEventListener('mousemove', (e) => {
+                        const idx = Number(slot.dataset.index);
+                        if (!isNaN(idx) && idx >= 0 && idx < allItems.length) {
+                            showTooltip(e, allItems[idx]);
+                        } else {
+                            hideTooltip();
+                        }
+                    });
+                    slot.addEventListener('mouseleave', hideTooltip);
+                } else {
+                    // Empty slot styling
+                    slot.style.cursor = 'default';
+                    slot.style.background = 'rgba(10, 10, 18, 0.5)';
+                    slot.style.borderColor = '#1a1a2e';
+                    slot.style.boxShadow = 'none';
+                    slot.style.transform = 'none';
+                }
 
                 grid.appendChild(slot);
-            });
+            }
 
             wrapper.appendChild(grid);
             chestContainer.appendChild(wrapper);
@@ -1780,15 +2054,49 @@
             const buffer = await file.arrayBuffer();
             fileName = file.name;
 
-            nbtRoot = await NBT.read(buffer, { endian: 'little' });
+            // Check if the user accidentally uploaded a text file
+            const bytes = new Uint8Array(buffer);
+            let firstNonWs = -1;
+            for (let i = 0; i < Math.min(bytes.length, 200); i++) {
+                const b = bytes[i];
+                if (b !== 0x20 && b !== 0x09 && b !== 0x0A && b !== 0x0D) { firstNonWs = i; break; }
+            }
+            if (firstNonWs >= 0 && bytes[firstNonWs] === 0x7B /* { */) {
+                throw new Error("You loaded a text file. The Item Editor only accepts binary .mcstructure files. Use the SNBT Unpacker to convert text files to .mcstructure first.");
+            }
 
+            const readResult = await NBT.read(buffer, { endian: 'little' });
+            
+            // NBTify wraps the root compound in `data`. We need to unwrap it.
+            let rootVal = readResult.data;
+
+            // Check if they uploaded an inner NBT file (like the one downloaded from the Unpacker)
+            if (!rootVal.structure && (rootVal.block_indices || rootVal.palette)) {
+                console.log("Detected inner NBT data. Wrapping in structure format...");
+                rootVal = {
+                    compression: new NBT.Int32(0),
+                    format_version: new NBT.Int32(2),
+                    size: [new NBT.Int32(1), new NBT.Int32(1), new NBT.Int32(1)],
+                    structure: rootVal, // The inner data becomes the structure
+                    structure_world_origin: [new NBT.Int32(0), new NBT.Int32(0), new NBT.Int32(0)]
+                };
+                readResult.data = rootVal;
+            }
+
+            if (!rootVal.structure) {
+                const keys = Object.keys(rootVal).join(', ');
+                throw new Error(`Invalid file: Missing 'structure' tag. Keys found: [${keys}]. Make sure you are loading a valid .mcstructure file.`);
+            }
+
+            nbtRoot = readResult; // Keep the NBTify wrapper for saving
             editedPaths.clear();
-            const result = extractChests(nbtRoot);
+            
+            // Let the extractor handle decompression and parsing safely
+            const result = await extractChests(nbtRoot); 
             chests = result.chests;
             allItems = result.allItems;
 
-            statusEl.textContent =
-                `LOADED: ${fileName} • ${allItems.length} item(s) in ${chests.length} chest(s)`;
+            statusEl.textContent = `LOADED: ${fileName.replace(/\.mcstructure$/i, '')}`;
             $('btnSave').disabled = false;
             $('btnGlintAll').disabled = false;
             $('btnKeepAll').disabled = false;
@@ -1898,13 +2206,48 @@
         try {
             const newFileName = getNextSaveName(fileName);
 
-            const out = await NBT.write(nbtRoot);
-            const blob = new Blob([out], { type: 'application/octet-stream' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = newFileName;
-            a.click();
-            URL.revokeObjectURL(a.href);
+            // Ensure we have the root data object
+            let rootData = nbtRoot.data || nbtRoot;
+
+            // Save the current state of the structure
+            const originalStructure = rootData.structure;
+            let wasCompressed = false;
+
+            // If the structure is a parsed object (not a Uint8Array), we need to compress it for saving
+            if (originalStructure && typeof originalStructure === 'object' && !(originalStructure instanceof Uint8Array) && !Array.isArray(originalStructure)) {
+                try {
+                    // 1. Serialize the inner structure to raw NBT bytes
+                    const innerBytes = await NBT.write(originalStructure, { endian: 'little' });
+                    
+                    // 2. Compress the bytes using zlib
+                    const compressedBytes = await compressBytes(innerBytes, 'zlib');
+                    
+                    // 3. Temporarily swap the data to save it
+                    rootData.structure = compressedBytes;
+                    rootData.compression = new NBT.Int32(1); // Force TAG_Int for Minecraft
+                    wasCompressed = true;
+                } catch (e) {
+                    console.error("Failed to re-compress for saving:", e);
+                }
+            }
+
+            // 4. Write the file to the disk
+            try {
+                const out = await NBT.write(rootData, { endian: 'little' });
+                const blob = new Blob([out], { type: 'application/octet-stream' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = newFileName;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            } finally {
+                // 5. Revert the swap so the editor continues working with the uncompressed data, even if saving failed
+                if (wasCompressed) {
+                    rootData.structure = originalStructure;
+                    rootData.compression = new NBT.Int32(0);
+                }
+            }
+
             fileName = newFileName; // keep counting up on the next save
             statusEl.textContent = `SAVED: ${newFileName}`;
         } catch (err) {
@@ -2194,6 +2537,15 @@
     $('btnGlintAll').onclick = toggleGlintAll;
     $('btnKeepAll').onclick = toggleKeepAll;
     $('btnSave').onclick = applyAndSave;
+
+    // ========== DETAIL ICON TOOLTIP ==========
+    const detailIconWrap = $('detailIconWrap');
+    detailIconWrap.addEventListener('mousemove', (e) => {
+        if (currentIndex >= 0 && currentIndex < allItems.length) {
+            showTooltip(e, allItems[currentIndex]);
+        }
+    });
+    detailIconWrap.addEventListener('mouseleave', hideTooltip);
 
     // 'btnClearLore' removed per user request
 
