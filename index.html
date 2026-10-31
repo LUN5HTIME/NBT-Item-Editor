@@ -216,6 +216,174 @@
             box-shadow: 0 0 22px rgba(255, 238, 0, 0.55);
         }
 
+        .item-nav {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            z-index: 11;
+        }
+
+        @keyframes navIconScrollLeft {
+            0% { transform: translateX(35px) scale(0.85); opacity: 0; }
+        }
+        @keyframes navIconScrollRight {
+            0% { transform: translateX(-35px) scale(0.85); opacity: 0; }
+        }
+        .item-nav.nav-scroll-left .nav-icon-wrap {
+            animation: navIconScrollLeft 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+        }
+        .item-nav.nav-scroll-right .nav-icon-wrap {
+            animation: navIconScrollRight 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+        }
+        .item-nav.nav-scroll-left .nav-icon-wrap.small,
+        .item-nav.nav-scroll-right .nav-icon-wrap.small {
+            animation-delay: 0.06s;
+        }
+        .item-nav.nav-scroll-left .nav-icon-wrap.current,
+        .item-nav.nav-scroll-right .nav-icon-wrap.current {
+            animation-delay: 0.02s;
+        }
+
+        .toolbar button.nav-arrow {
+            background: transparent;
+            border: 3px solid transparent;
+            color: var(--cyan);
+            font-size: 28px;
+            font-weight: normal;
+            cursor: pointer;
+            padding: 4px 8px;
+            user-select: none;
+            transition: all 0.2s;
+            text-shadow: 0 0 8px rgba(0, 247, 255, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: none;
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+            text-transform: none;
+        }
+
+        .toolbar button.nav-arrow:hover:not(:disabled) {
+            transform: translateY(-2px);
+            border-color: var(--cyan);
+            background: rgba(0, 247, 255, 0.12);
+            box-shadow: 0 0 12px rgba(0, 247, 255, 0.4);
+            text-shadow: 0 0 10px var(--cyan);
+        }
+
+        .toolbar button.nav-arrow:active:not(:disabled) {
+            transform: scale(0.94);
+        }
+
+        .nav-icon-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0a0a12;
+            border: 2px solid rgba(0, 247, 255, 0.3); /* Faded border */
+            border-radius: 2px;
+            overflow: hidden;
+            transition: all 0.2s;
+            width: 36px;
+            height: 36px;
+            padding: 2px;
+            opacity: 0.6; /* Faded icon */
+        }
+
+        .nav-icon-wrap.small {
+            width: 28px;
+            height: 28px;
+            padding: 1px;
+            border-color: rgba(0, 247, 255, 0.15); /* Even more faded border */
+            opacity: 0.4; /* Even more faded icon */
+        }
+
+        .nav-icon-wrap.current {
+            width: 46px;
+            height: 46px;
+            padding: 3px;
+            border-width: 3px;
+            border-color: var(--pink);
+            box-shadow: 0 0 12px rgba(255, 0, 170, 0.5);
+            display: flex;
+            opacity: 1; /* Center item stays fully visible */
+        }
+
+        .nav-icon-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated;
+            display: block;
+        }
+
+        @media (max-width: 800px) {
+            .nav-icon-wrap { width: 30px; height: 30px; }
+            .nav-icon-wrap.small { width: 22px; height: 22px; }
+            .nav-icon-wrap.current { width: 38px; height: 38px; }
+            .toolbar button.nav-arrow { font-size: 22px; padding: 2px 6px; border-width: 2px; }
+        }
+
+        @keyframes slideInFromRight {
+            from { opacity: 0; transform: translateX(60px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideInFromLeft {
+            from { opacity: 0; transform: translateX(-60px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .detail-container.slide-from-right {
+            animation: slideInFromRight 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .detail-container.slide-from-left {
+            animation: slideInFromLeft 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        #detailScreen {
+            overflow-x: auto; /* Allows you to scroll horizontally if the text gets too long */
+        }
+
+        .mc-swatch {
+            cursor: pointer;
+            padding: 2px 5px;
+            border-radius: 2px;
+            display: inline-block;
+            transition: all 0.15s;
+            text-shadow: -1px -1px 0 #2a2a4a, 1px -1px 0 #2a2a4a, -1px 1px 0 #2a2a4a, 1px 1px 0 #2a2a4a;
+            border: 1px solid #2a2a4a;
+            background: rgba(10, 10, 18, 0.5);
+        }
+
+        .mc-swatch:hover {
+            background: rgba(255, 255, 255, 0.16);
+            border-color: var(--cyan);
+            transform: scale(1.1);
+        }
+
+        .mc-swatch:active {
+            transform: scale(0.95);
+        }
+
+        .swatch-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 4px;
+            user-select: none;
+        }
+
+        .swatch-row:last-child {
+            margin-bottom: 0;
+        }
+
         .status {
             margin-left: auto;
             font-size: 22px;
@@ -498,7 +666,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 14px;
-            max-width: 1300px;
+            max-width: 1100px;
             margin: 0 auto;
             width: 100%;
         }
@@ -580,9 +748,15 @@
 
         .selected-header {
             display: flex;
-            align-items: left;
+            align-items: center;
+            justify-content: flex-end; /* Pushes the item and name to the right edge */
             gap: 16px;
-            flex-direction: row-reverse; /* Moves icon to the right */
+            flex-wrap: nowrap;
+        }
+
+        .selected-header .name {
+            text-align: right; /* Ensures long names align nicely against the icon */
+            white-space: pre; /* Prevents auto-wrapping */
         }
 
         .selected-header .detail-icon-wrap {
@@ -660,16 +834,16 @@
             border: 2px solid #3a1a5c;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.8), inset 0 0 10px rgba(0, 0, 0, 0.5);
             padding: 8px 10px;
-            max-width: 500px;
-            width: max-content;
-            min-width: 0;
+            width: max-content; /* Forces the box to grow infinitely to the right */
+            min-width: 100%;
+            box-sizing: border-box;
             font-family: 'Minecraft', monospace;
             font-size: 11px;
             color: #ffffff;
             line-height: 1.25;
-            display: inline-block;
-            vertical-align: top;
+            display: block;
             height: fit-content;
+            white-space: pre; /* Prevents auto-wrapping */
         }
 
         .preview-box .name {
@@ -934,7 +1108,7 @@
 <div class="screen" id="listScreen">
     <div class="toolbar">
         <button class="primary" id="btnOpen">OPEN</button>
-        <button class="green" id="btnSave" disabled>APPLY + SAVE</button>
+        <button class="green" id="btnSave" disabled><svg viewBox="0 0 16 16" shape-rendering="crispEdges" style="width:18px;height:18px;image-rendering:pixelated;vertical-align:middle;margin-right:6px;" fill="currentColor"><rect x="1" y="1" width="14" height="14"/><rect x="4" y="3" width="8" height="3" fill="#0c0c18"/><rect x="3" y="9" width="10" height="6" fill="#0c0c18"/><rect x="4" y="10" width="8" height="1"/><rect x="4" y="12" width="8" height="1"/></svg>SAVE</button>
         <button id="btnGlintAll" disabled>GLINT: OFF</button>
         <button id="btnKeepAll" disabled>KEEP: OFF</button>
         <div class="status" id="status">No file loaded</div>
@@ -958,6 +1132,15 @@
 <div class="screen" id="detailScreen">
     <div class="toolbar">
         <button class="back-btn" id="btnBack">< BACK</button>
+        <div class="item-nav">
+            <div class="nav-icon-wrap small" id="navPrev2Wrap"><img id="navPrev2Icon" alt="" /></div>
+            <div class="nav-icon-wrap" id="navPrev1Wrap"><img id="navPrev1Icon" alt="" /></div>
+            <button class="nav-arrow" id="btnNavPrev" title="Previous item">&lt;</button>
+            <div class="nav-icon-wrap current" id="navCurrentWrap"><img id="navCurrentIcon" alt="" /></div>
+            <button class="nav-arrow" id="btnNavNext" title="Next item">&gt;</button>
+            <div class="nav-icon-wrap" id="navNext1Wrap"><img id="navNext1Icon" alt="" /></div>
+            <div class="nav-icon-wrap small" id="navNext2Wrap"><img id="navNext2Icon" alt="" /></div>
+        </div>
         <div class="status" id="detailStatus">EDITING ITEM</div>
     </div>
 
@@ -968,13 +1151,10 @@
         </div>
 
         <div class="card">
-            <h3>◆ SELECTED ITEM</h3>
             <div class="selected-header">
+                <div class="name" id="detailName">minecraft:item</div>
                 <div class="detail-icon-wrap" id="detailIconWrap">
                     <img id="detailIcon" src="" alt="" />
-                </div>
-                <div>
-                    <div class="name" id="detailName">minecraft:item</div>
                 </div>
             </div>
         </div>
@@ -1069,6 +1249,7 @@
     let currentIndex = -1;
     // Paths of items the user has edited this session (survives refresh/re-extract)
     const editedPaths = new Set();
+    let editSnapshot = '';
 
     // ========== DOM HELPERS ==========
     const $ = id => document.getElementById(id);
@@ -1176,25 +1357,69 @@
         v: '#FE7F00'  // Material: Resin
     };
 
-    // Build the § color hint under RENAME from MC_COLORS so it stays in sync
+    // Build the § color hint under RENAME from MC_COLORS so it stays in sync.
+    // Swatches are clickable and insert the § code into whichever textbox is focused.
     (function buildColorHint() {
         const el = document.getElementById('colorHint');
         if (!el) return;
 
-        const vanilla = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f',];
+        const vanilla = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'];
         const bedrock = ['g','h','i','j','m','n','p','q','s','t','u','v'];
+        const allCodes = [...vanilla, ...bedrock, 'r'];
 
         const swatch = (code, label) => {
             const hex = MC_COLORS[code] || '#ffffff';
-            return `<span style="color:${hex};font-weight:normal;text-shadow:none;font-size:15px;">${label || '§' + code}</span>`;
+            return `<span class="mc-swatch" data-code="${code}" title="Insert §${code}" style="color:${hex};font-weight:normal;font-size:20px;">${label || '§' + code}</span>`;
         };
 
-        el.innerHTML =
-            vanilla.map(c => swatch(c)).join(' ') +
-            ' ' +
-            bedrock.map(c => swatch(c)).join(' ') +
-            ' ' +
-            swatch('r', '§r');
+        // Chunk into rows of 15 to keep them evenly distributed and centered
+        const rowSize = 15;
+        let html = '';
+        for (let i = 0; i < allCodes.length; i += rowSize) {
+            const row = allCodes.slice(i, i + rowSize);
+            html += `<div class="swatch-row">${row.map(c => swatch(c)).join('')}</div>`;
+        }
+        el.innerHTML = html;
+
+        // Remember the most recently focused textbox
+        let lastFocusedTextbox = null;
+        const trackFocus = (e) => {
+            if (e.target === $('nameInput') || e.target === $('loreInput')) {
+                lastFocusedTextbox = e.target;
+            }
+        };
+        $('nameInput').addEventListener('focus', trackFocus);
+        $('loreInput').addEventListener('focus', trackFocus);
+
+        function insertAtCursor(textarea, text) {
+            if (!textarea) return;
+            const start = textarea.selectionStart ?? textarea.value.length;
+            const end = textarea.selectionEnd ?? textarea.value.length;
+            const value = textarea.value;
+            textarea.value = value.slice(0, start) + text + value.slice(end);
+            const newPos = start + text.length;
+            textarea.selectionStart = textarea.selectionEnd = newPos;
+            textarea.focus();
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // CRITICAL FIX: Prevent the textbox from losing focus when clicking a swatch
+        el.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.mc-swatch')) {
+                e.preventDefault();
+            }
+        });
+
+        el.addEventListener('click', (e) => {
+            const sw = e.target.closest('.mc-swatch');
+            if (!sw) return;
+            const text = '§' + sw.dataset.code;
+            let target = document.activeElement;
+            if (target !== $('nameInput') && target !== $('loreInput')) {
+                target = lastFocusedTextbox || $('nameInput');
+            }
+            insertAtCursor(target, text);
+        });
     })();
 
     function parseMC(text, defaultColor = '#FFFFFF', defaultItalic = false) {
@@ -2320,7 +2545,101 @@
 
         $('listScreen').classList.add('hidden');
         $('detailScreen').classList.add('active');
+        updateNavIcons();
+        editSnapshot = getSnapshot();
     }
+
+    function getSnapshot() {
+        return JSON.stringify({
+            name: $('nameInput').value,
+            lore: $('loreInput').value,
+            keep: $('keepCheck').checked,
+            glint: $('glintCheck').checked,
+            damageChecked: $('shortDamageCheck').checked,
+            damageVal: $('shortDamageInput').value,
+            unbreakable: $('unbreakableCheck').checked
+        });
+    }
+
+    function updateNavIcons() {
+        const length = allItems.length;
+        
+        // Handle left/right arrow fades
+        const btnNavPrev = $('btnNavPrev');
+        if (btnNavPrev) {
+            btnNavPrev.style.opacity = currentIndex > 0 ? '1' : '0.3';
+            btnNavPrev.style.pointerEvents = currentIndex > 0 ? 'auto' : 'none';
+        }
+
+        const btnNavNext = $('btnNavNext');
+        if (btnNavNext) {
+            btnNavNext.style.opacity = currentIndex < length - 1 ? '1' : '0.3';
+            btnNavNext.style.pointerEvents = currentIndex < length - 1 ? 'auto' : 'none';
+        }
+
+        // Helper to update each icon slot
+        const updateIcon = (wrapId, imgId, index) => {
+            const wrap = $(wrapId);
+            const img = $(imgId);
+            if (!wrap || !img) return;
+            if (index >= 0 && index < length) {
+                wrap.style.visibility = 'visible';
+                setItemIcon(img, allItems[index].name);
+            } else {
+                wrap.style.visibility = 'hidden';
+                img.removeAttribute('src');
+            }
+        };
+
+        updateIcon('navPrev2Wrap', 'navPrev2Icon', currentIndex - 2);
+        updateIcon('navPrev1Wrap', 'navPrev1Icon', currentIndex - 1);
+        updateIcon('navCurrentWrap', 'navCurrentIcon', currentIndex);
+        updateIcon('navNext1Wrap', 'navNext1Icon', currentIndex + 1);
+        updateIcon('navNext2Wrap', 'navNext2Icon', currentIndex + 2);
+    }
+
+    function navigateItem(delta) {
+        if (currentIndex < 0) return;
+        const newIdx = currentIndex + delta;
+        if (newIdx < 0 || newIdx >= allItems.length) return;
+        applyChanges();
+        renderDetail(newIdx);
+        history.replaceState({ screen: 'detail', index: newIdx }, '');
+        const dc = document.querySelector('.detail-container');
+        if (dc) {
+            dc.classList.remove('slide-from-left', 'slide-from-right');
+            void dc.offsetWidth;
+            dc.classList.add(delta > 0 ? 'slide-from-right' : 'slide-from-left');
+        }
+
+        const nav = document.querySelector('.item-nav');
+        if (nav) {
+            nav.classList.remove('nav-scroll-left', 'nav-scroll-right');
+            void nav.offsetWidth;
+            nav.classList.add(delta > 0 ? 'nav-scroll-left' : 'nav-scroll-right');
+        }
+    }
+
+    $('btnNavPrev').onclick = () => navigateItem(-1);
+    $('btnNavNext').onclick = () => navigateItem(1);
+
+    // Keyboard navigation (Left / Right arrows)
+    document.addEventListener('keydown', (e) => {
+        if ($('detailScreen').classList.contains('active')) {
+            const active = document.activeElement;
+            // Don't navigate if the user is currently typing in the text boxes
+            if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+                return; 
+            }
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                navigateItem(-1);
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                navigateItem(1);
+            }
+        }
+    });
 
     function updateDetailGlint() {
         const wrap = $('detailIconWrap');
@@ -2337,6 +2656,11 @@
         if (currentIndex < 0 || !allItems[currentIndex]) return;
         const it = allItems[currentIndex];
         const item = it.ref;
+
+        const currentSnapshot = getSnapshot();
+        if (currentSnapshot === editSnapshot) {
+            return; // Nothing changed, so don't mark as edited!
+        }
 
         // Ensure tag structure exists
         if (!item.tag) item.tag = {};
@@ -2409,6 +2733,8 @@
         // Mark as edited this session (star + outline in list)
         it.edited = true;
         if (it.path) editedPaths.add(it.path);
+
+        editSnapshot = currentSnapshot;
 
         // Re-render list so tooltips / glint / star stay in sync
         renderList();
@@ -2547,6 +2873,29 @@
     });
     detailIconWrap.addEventListener('mouseleave', hideTooltip);
 
+    // ========== NAV ICON TOOLTIPS ==========
+    const navWraps = [
+        { id: 'navPrev2Wrap', offset: -2 },
+        { id: 'navPrev1Wrap', offset: -1 },
+        { id: 'navCurrentWrap', offset: 0 },
+        { id: 'navNext1Wrap', offset: 1 },
+        { id: 'navNext2Wrap', offset: 2 }
+    ];
+    
+    navWraps.forEach(({ id, offset }) => {
+        const wrap = $(id);
+        if (!wrap) return;
+        wrap.addEventListener('mousemove', (e) => {
+            const idx = currentIndex + offset;
+            if (idx >= 0 && idx < allItems.length) {
+                showTooltip(e, allItems[idx]);
+            } else {
+                hideTooltip();
+            }
+        });
+        wrap.addEventListener('mouseleave', hideTooltip);
+    });
+
     // 'btnClearLore' removed per user request
 
     // Also apply when checkboxes change (so tooltip stays fresh)
@@ -2596,16 +2945,9 @@
         });
     });
 
-    // ========== KEYBOARD SHORTCUT: ESC to go back ==========
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && $('detailScreen').classList.contains('active')) {
-            goBack();
-        }
-    });
-
     console.log('✦ Bedrock .mcstructure Item Editor loaded ✦');
     console.log('• Tooltips now show for ALL items (even without lore/custom name)');
-    console.log('• Changes auto-save when you go BACK (ESC or click ←)');
+    console.log('• Changes auto-save when you go BACK (click < BACK)');
     console.log('• Tooltips update live with your edits');
     console.log('• "Chest 1" bug fixed — block_palette is skipped');
 </script>
